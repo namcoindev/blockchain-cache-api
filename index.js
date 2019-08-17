@@ -152,6 +152,14 @@ log('Connected to database backend at ' + database.host + ':' + database.port)
 
 const app = Express()
 
+app.use((req, res, next) => {
+  const ip = clientIp(req)
+  if (Config.blacklistedIps.indexOf(ip) !== -1) {
+    return res.status(403).send()
+  }
+  next()
+})
+
 /* Automatically decode JSON input from client requests */
 app.use(BodyParser.json())
 

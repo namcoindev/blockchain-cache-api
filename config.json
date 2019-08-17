@@ -11,5 +11,6 @@
     "address": "",
     "amount": 0
   },
+  "blacklistedIps": [],
   "useCompression": false
 }
