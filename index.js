@@ -96,6 +96,10 @@ async function connectRabbit () {
   await connectRabbit()
 })()
 
+function clientIp (req) {
+  return req.header('x-forwarded-for') || req.ip
+}
+
 function logHTTPRequest (req, params, time) {
   params = params || ''
   if (!time && Array.isArray(params) && params.length === 2 && !isNaN(params[0]) && !isNaN(params[1])) {
@@ -107,7 +111,7 @@ function logHTTPRequest (req, params, time) {
   } else {
     time = ''
   }
-  log(util.format('[REQUEST] (%s) %s %s%s', req.ip, req.path, params, time))
+  log(util.format('[REQUEST] (%s) %s %s%s', clientIp(req), req.path, params, time))
 }
 
 function logHTTPError (req, message, time) {
@@ -117,7 +121,7 @@ function logHTTPError (req, message, time) {
     time = ''
   }
   message = message || 'Parsing error'
-  log(util.format('[ERROR] (%s) %s: %s%s', req.ip, req.path, message, time).red)
+  log(util.format('[ERROR] (%s) %s: %s%s', clientIp(req), req.path, message, time).red)
 }
 
 /* This is a special magic function to make sure that when
