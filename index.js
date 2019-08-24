@@ -1062,6 +1062,11 @@ app.post('/sendrawtransaction', (req, res) => {
   }, 5500)
 })
 
+/* Basic status response via GET that responds to basic monitoring requests */
+app.get('/status', (req, res) => {
+  return res.json({ status: 'ok' })
+})
+
 /* Response to options requests for preflights */
 app.options('*', (req, res) => {
   return res.status(200).send()
