@@ -4,6 +4,8 @@
   "corsHeader": "*",
   "coinDecimals": 2,
   "defaultMixins": 3,
+  "emissionSpeed": 25,
+  "maxSupply": 100000000000000,
   "queues": {
     "relayAgent": "request.network"
   },

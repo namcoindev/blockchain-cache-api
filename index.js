@@ -5,6 +5,7 @@
 'use strict'
 
 require('dotenv').config()
+const BigInteger = require('big-integer')
 const BodyParser = require('body-parser')
 require('colors')
 const Compression = require('compression')
@@ -1067,8 +1068,30 @@ app.get('/reward/last', (req, res) => {
   const start = process.hrtime()
   database.getLastBlockHeader().then((header) => {
     logHTTPRequest(req, process.hrtime(start))
+
     const reward = (header.baseReward / Math.pow(10, Config.coinDecimals)).toFixed(Config.coinDecimals).toString()
+
     return res.send(reward)
+  }).catch((error) => {
+    logHTTPError(req, error, process.hrtime(start))
+    return res.status(500).send()
+  })
+})
+
+/* Returns the next block reward */
+app.get('/reward/next', (req, res) => {
+  const start = process.hrtime()
+  database.getLastBlockHeader().then((header) => {
+    logHTTPRequest(req, process.hrtime(start))
+
+    const reward = BigInteger(Config.maxSupply)
+      .subtract(header.alreadyGeneratedCoins)
+      .shiftRight(Config.emissionSpeed)
+      .toJSNumber()
+
+    const nextReward = (reward / Math.pow(10, Config.coinDecimals)).toFixed(Config.coinDecimals).toString()
+
+    return res.send(nextReward)
   }).catch((error) => {
     logHTTPError(req, error, process.hrtime(start))
     return res.status(500).send()
