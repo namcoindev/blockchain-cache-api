@@ -1062,6 +1062,19 @@ app.post('/sendrawtransaction', (req, res) => {
   }, 5500)
 })
 
+/* Returns the last block reward */
+app.get('/reward/last', (req, res) => {
+  const start = process.hrtime()
+  database.getLastBlockHeader().then((header) => {
+    logHTTPRequest(req, process.hrtime(start))
+    const reward = (header.baseReward / Math.pow(10, Config.coinDecimals)).toFixed(Config.coinDecimals).toString()
+    return res.send(reward)
+  }).catch((error) => {
+    logHTTPError(req, error, process.hrtime(start))
+    return res.status(500).send()
+  })
+})
+
 /* Basic status response via GET that responds to basic monitoring requests */
 app.get('/status', (req, res) => {
   return res.json({ status: 'ok' })
