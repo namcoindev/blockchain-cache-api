@@ -15,6 +15,8 @@ const Express = require('express')
 const Helmet = require('helmet')
 const isHex = require('is-hex')
 const RabbitMQ = require('amqplib')
+const semver = require('semver')
+const TurtleCoinNodeMonitor = require('turtlecoin-node-monitor')
 const TurtleCoinUtils = require('turtlecoin-utils').CryptoNote
 const util = require('util')
 const UUID = require('uuid/v4')
@@ -1102,6 +1104,214 @@ app.get('/reward/next', (req, res) => {
 app.get('/status', (req, res) => {
   return res.json({ status: 'ok' })
 })
+
+/* These API methods are only available if we have been
+   configured as having access to node monitor data in the
+   same database */
+if (Config.useNodeMonitor) {
+/* Set up our access to the node monitor information */
+  const nodes = new TurtleCoinNodeMonitor({
+    host: env.mysql.host,
+    port: env.mysql.port,
+    username: env.mysql.username,
+    password: env.mysql.password,
+    database: env.mysql.database,
+    connectionLimit: env.mysql.connectionLimit
+  })
+
+  app.get('/node/list', (req, res) => {
+    const start = process.hrtime()
+    const maxFee = req.query.max_fee || false
+    var minVersion = req.query.min_version || false
+
+    if (minVersion) {
+      minVersion = semver.clean(minVersion)
+      if (!semver.valid(minVersion)) minVersion = false
+    }
+
+    nodes.getNodeStats().then((stats) => {
+      logHTTPRequest(req, process.hrtime(start))
+
+      const response = {
+        nodes: []
+      }
+
+      stats.forEach((node) => {
+        if (maxFee && node.feeAmount >= maxFee) return
+        node.version = semver.clean(node.version)
+        if (!semver.valid(node.version)) return
+        if (minVersion && semver.lt(node.version, minVersion)) return
+
+        response.nodes.push({
+          name: node.name,
+          url: node.hostname,
+          port: node.port,
+          ssl: (node.ssl === 1),
+          cache: (node.cache === 1),
+          fee: {
+            address: node.feeAddress,
+            amount: node.feeAmount
+          },
+          availability: node.availability,
+          online: node.status,
+          version: node.version,
+          timestamp: node.lastCheckTimestamp
+        })
+      })
+
+      return res.json(response)
+    }).catch((error) => {
+      logHTTPError(req, error, process.hrtime(start))
+      return res.status(500).send()
+    })
+  })
+
+  app.get('/node/list/online', (req, res) => {
+    const start = process.hrtime()
+    const maxFee = req.query.max_fee || false
+    var minVersion = req.query.min_version || false
+
+    if (minVersion) {
+      minVersion = semver.clean(minVersion)
+      if (!semver.valid(minVersion)) minVersion = false
+    }
+
+    nodes.getNodeStats().then((stats) => {
+      logHTTPRequest(req, process.hrtime(start))
+
+      const response = {
+        nodes: []
+      }
+
+      stats.forEach((node) => {
+        if (!node.status) return
+        if (maxFee && node.feeAmount >= maxFee) return
+        node.version = semver.clean(node.version)
+        if (!semver.valid(node.version)) return
+        if (minVersion && semver.lt(node.version, minVersion)) return
+
+        response.nodes.push({
+          name: node.name,
+          url: node.hostname,
+          port: node.port,
+          ssl: (node.ssl === 1),
+          cache: (node.cache === 1),
+          fee: {
+            address: node.feeAddress,
+            amount: node.feeAmount
+          },
+          availability: node.availability,
+          online: node.status,
+          version: node.version,
+          timestamp: node.lastCheckTimestamp
+        })
+      })
+
+      return res.json(response)
+    }).catch((error) => {
+      logHTTPError(req, error, process.hrtime(start))
+      return res.status(500).send()
+    })
+  })
+
+  app.get('/node/list/available', (req, res) => {
+    const start = process.hrtime()
+    const maxFee = req.query.max_fee || false
+    var minVersion = req.query.min_version || false
+
+    if (minVersion) {
+      minVersion = semver.clean(minVersion)
+      if (!semver.valid(minVersion)) minVersion = false
+    }
+
+    nodes.getNodeStats().then((stats) => {
+      logHTTPRequest(req, process.hrtime(start))
+
+      const response = {
+        nodes: []
+      }
+
+      stats.forEach((node) => {
+        if (node.availability === 0) return
+        if (maxFee && node.feeAmount >= maxFee) return
+        node.version = semver.clean(node.version)
+        if (!semver.valid(node.version)) return
+        if (minVersion && semver.lt(node.version, minVersion)) return
+
+        response.nodes.push({
+          name: node.name,
+          url: node.hostname,
+          port: node.port,
+          ssl: (node.ssl === 1),
+          cache: (node.cache === 1),
+          fee: {
+            address: node.feeAddress,
+            amount: node.feeAmount
+          },
+          availability: node.availability,
+          online: node.status,
+          version: node.version,
+          timestamp: node.lastCheckTimestamp
+        })
+      })
+
+      return res.json(response)
+    }).catch((error) => {
+      logHTTPError(req, error, process.hrtime(start))
+      return res.status(500).send()
+    })
+  })
+
+  app.get('/node/stats', (req, res) => {
+    const start = process.hrtime()
+
+    nodes.getNodeStats().then((stats) => {
+      logHTTPRequest(req, process.hrtime(start))
+
+      const response = []
+
+      stats.forEach((node) => {
+        if (node.availability === 0) return
+
+        const obj = {
+          name: node.name,
+          url: node.hostname,
+          port: node.port,
+          ssl: (node.ssl === 1),
+          cache: (node.cache === 1),
+          fee: {
+            address: node.feeAddress,
+            amount: node.feeAmount
+          },
+          availability: node.availability,
+          online: node.status,
+          version: node.version,
+          timestamp: node.lastCheckTimestamp,
+          height: node.height,
+          connectionsIn: node.connectionsIn,
+          connectionsOut: node.connectionsOut,
+          history: []
+        }
+
+        node.history.forEach((evt) => {
+          obj.history.push({
+            timestamp: evt.timestamp,
+            online: evt.status
+          })
+        })
+
+        node.history.sort((a, b) => (a.timestamp < b.timestamp) ? 1 : -1)
+
+        response.push(obj)
+      })
+
+      return res.json(response)
+    }).catch((error) => {
+      logHTTPError(req, error, process.hrtime(start))
+      return res.status(500).send()
+    })
+  })
+}
 
 /* Response to options requests for preflights */
 app.options('*', (req, res) => {
