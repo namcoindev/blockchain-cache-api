@@ -1121,7 +1121,7 @@ if (Config.useNodeMonitor) {
 
   app.get('/node/list', (req, res) => {
     const start = process.hrtime()
-    const maxFee = req.query.max_fee || false
+    const maxFee = toNumber(req.query.max_fee) || false
     var minVersion = req.query.min_version || false
 
     if (minVersion) {
@@ -1168,7 +1168,7 @@ if (Config.useNodeMonitor) {
 
   app.get('/node/list/online', (req, res) => {
     const start = process.hrtime()
-    const maxFee = req.query.max_fee || false
+    const maxFee = toNumber(req.query.max_fee) || false
     var minVersion = req.query.min_version || false
 
     if (minVersion) {
@@ -1216,7 +1216,7 @@ if (Config.useNodeMonitor) {
 
   app.get('/node/list/available', (req, res) => {
     const start = process.hrtime()
-    const maxFee = req.query.max_fee || false
+    const maxFee = toNumber(req.query.max_fee) || false
     var minVersion = req.query.min_version || false
 
     if (minVersion) {
