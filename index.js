@@ -1290,17 +1290,17 @@ if (Config.useNodeMonitor) {
           height: node.height,
           connectionsIn: node.connectionsIn,
           connectionsOut: node.connectionsOut,
-          pollingHistory: []
+          history: []
         }
 
         node.history.forEach((evt) => {
-          obj.pollingHistory.push({
+          obj.history.push({
             timestamp: evt.timestamp,
             online: evt.status
           })
         })
 
-        obj.pollingHistory.sort((a, b) => (a.timestamp < b.timestamp) ? 1 : -1)
+        obj.history.sort((a, b) => (a.timestamp < b.timestamp) ? 1 : -1)
 
         response.push(obj)
       })
