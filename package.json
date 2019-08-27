@@ -1,6 +1,6 @@
 {
   "name": "blockchain-cache-api",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "description": "TurtlePay: Blockchain Cache API",
   "main": "index.js",
   "scripts": {
