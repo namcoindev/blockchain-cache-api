@@ -17,6 +17,7 @@ const isHex = require('is-hex')
 const RabbitMQ = require('amqplib')
 const semver = require('semver')
 const TurtleCoinNodeMonitor = require('turtlecoin-node-monitor')
+const TurtleCoinPoolMonitor = require('turtlecoin-pool-monitor')
 const TurtleCoinUtils = require('turtlecoin-utils').CryptoNote
 const util = require('util')
 const UUID = require('uuid/v4')
@@ -1294,6 +1295,178 @@ if (Config.useNodeMonitor) {
         }
 
         node.history.forEach((evt) => {
+          obj.history.push({
+            timestamp: evt.timestamp,
+            online: evt.status
+          })
+        })
+
+        obj.history.sort((a, b) => (a.timestamp < b.timestamp) ? 1 : -1)
+
+        response.push(obj)
+      })
+
+      return res.json(response)
+    }).catch((error) => {
+      logHTTPError(req, error, process.hrtime(start))
+      return res.status(500).send()
+    })
+  })
+}
+
+/* These API methods are only available if we have been
+   configured as having access to pool monitor data in the
+   same database */
+if (Config.useNodeMonitor) {
+/* Set up our access to the node monitor information */
+  const pools = new TurtleCoinPoolMonitor({
+    host: env.mysql.host,
+    port: env.mysql.port,
+    username: env.mysql.username,
+    password: env.mysql.password,
+    database: env.mysql.database,
+    connectionLimit: env.mysql.connectionLimit
+  })
+
+  app.get('/pool/list', (req, res) => {
+    const start = process.hrtime()
+
+    pools.getPoolStats().then((stats) => {
+      logHTTPRequest(req, process.hrtime(start))
+
+      const response = {
+        pools: []
+      }
+
+      stats.forEach((pool) => {
+        response.pools.push({
+          name: pool.name,
+          url: pool.url,
+          api: pool.api,
+          type: pool.type,
+          miningAddress: pool.miningAddress,
+          mergedMining: (pool.mergedMining === 1),
+          mergedMiningIsParentChain: (pool.mergedMiningIsParentChain === 1),
+          fee: pool.fee,
+          minPayout: pool.minPayout,
+          timestamp: pool.lastCheckTimestamp,
+          availability: pool.availability,
+          online: pool.status
+        })
+      })
+
+      return res.json(response)
+    }).catch((error) => {
+      logHTTPError(req, error, process.hrtime(start))
+      return res.status(500).send()
+    })
+  })
+
+  app.get('/pool/list/online', (req, res) => {
+    const start = process.hrtime()
+
+    pools.getPoolStats().then((stats) => {
+      logHTTPRequest(req, process.hrtime(start))
+
+      const response = {
+        pools: []
+      }
+
+      stats.forEach((pool) => {
+        if (!pool.status) return
+
+        response.pools.push({
+          name: pool.name,
+          url: pool.url,
+          api: pool.api,
+          type: pool.type,
+          miningAddress: pool.miningAddress,
+          mergedMining: (pool.mergedMining === 1),
+          mergedMiningIsParentChain: (pool.mergedMiningIsParentChain === 1),
+          fee: pool.fee,
+          minPayout: pool.minPayout,
+          timestamp: pool.lastCheckTimestamp,
+          availability: pool.availability,
+          online: pool.status
+        })
+      })
+
+      return res.json(response)
+    }).catch((error) => {
+      logHTTPError(req, error, process.hrtime(start))
+      return res.status(500).send()
+    })
+  })
+
+  app.get('/pool/list/available', (req, res) => {
+    const start = process.hrtime()
+
+    pools.getPoolStats().then((stats) => {
+      logHTTPRequest(req, process.hrtime(start))
+
+      const response = {
+        pools: []
+      }
+
+      stats.forEach((pool) => {
+        if (!pool.availability || pool.availability === 0) return
+
+        response.pools.push({
+          name: pool.name,
+          url: pool.url,
+          api: pool.api,
+          type: pool.type,
+          miningAddress: pool.miningAddress,
+          mergedMining: (pool.mergedMining === 1),
+          mergedMiningIsParentChain: (pool.mergedMiningIsParentChain === 1),
+          fee: pool.fee,
+          minPayout: pool.minPayout,
+          timestamp: pool.lastCheckTimestamp,
+          availability: pool.availability,
+          online: pool.status
+        })
+      })
+
+      return res.json(response)
+    }).catch((error) => {
+      logHTTPError(req, error, process.hrtime(start))
+      return res.status(500).send()
+    })
+  })
+
+  app.get('/pool/stats', (req, res) => {
+    const start = process.hrtime()
+
+    pools.getPoolStats().then((stats) => {
+      logHTTPRequest(req, process.hrtime(start))
+
+      const response = []
+
+      stats.forEach((pool) => {
+        if (!pool.availability || pool.availability === 0) return
+
+        const obj = {
+          name: pool.name,
+          url: pool.url,
+          api: pool.api,
+          type: pool.type,
+          miningAddress: pool.miningAddress,
+          mergedMining: (pool.mergedMining === 1),
+          mergedMiningIsParentChain: (pool.mergedMiningIsParentChain === 1),
+          fee: pool.fee,
+          minPayout: pool.minPayout,
+          timestamp: pool.lastCheckTimestamp,
+          availability: pool.availability,
+          online: pool.status,
+          height: pool.height,
+          hashrate: pool.hashrate,
+          miners: pool.miners,
+          lastBlock: pool.lastBlock,
+          donation: pool.donation,
+          history: []
+        }
+
+        pool.history.forEach((evt) => {
           obj.history.push({
             timestamp: evt.timestamp,
             online: evt.status
