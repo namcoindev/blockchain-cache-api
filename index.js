@@ -1273,6 +1273,7 @@ if (Config.useNodeMonitor) {
 
       stats.forEach((node) => {
         if (node.availability === 0) return
+        node.history = node.history || []
 
         const obj = {
           name: node.name,
@@ -1444,6 +1445,7 @@ if (Config.useNodeMonitor) {
 
       stats.forEach((pool) => {
         if (!pool.availability || pool.availability === 0) return
+        pool.history = pool.history || []
 
         const obj = {
           name: pool.name,
