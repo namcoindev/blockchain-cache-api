@@ -1291,6 +1291,9 @@ if (Config.useNodeMonitor) {
           height: node.height,
           connectionsIn: node.connectionsIn,
           connectionsOut: node.connectionsOut,
+          difficulty: node.difficulty,
+          hashrate: node.hashrate,
+          txPoolSize: node.txPoolSize,
           history: []
         }
 
