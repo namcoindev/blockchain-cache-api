@@ -111,21 +111,21 @@ function logHTTPRequest (req, params, time) {
     params = ''
   }
   if (Array.isArray(time) && time.length === 2) {
-    time = util.format(' [%s.%ss]', time[0], time[1])
+    time = util.format(' [%s.%ss]', time[0], time[1].toFixed(7))
   } else {
     time = ''
   }
-  log(util.format('[REQUEST] %s (%s) %s %s%s', time, clientIp(req), req.path, params).green)
+  log(util.format('[REQUEST]%s (%s) %s %s%s', time, clientIp(req), req.path, params).green)
 }
 
 function logHTTPError (req, message, time) {
   if (Array.isArray(time) && time.length === 2) {
-    time = util.format(' [%s.%ss]', time[0], time[1])
+    time = util.format(' [%s.%ss]', time[0], time[1].toFixed(7))
   } else {
     time = ''
   }
   message = message || 'Parsing error'
-  log(util.format('[ERROR] %s (%s) %s: %s%s', time, clientIp(req), req.path, message).red)
+  log(util.format('[ERROR]%s (%s) %s: %s%s', time, clientIp(req), req.path, message).red)
 }
 
 /* This is a special magic function to make sure that when
