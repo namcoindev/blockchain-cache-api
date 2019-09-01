@@ -111,7 +111,10 @@ function logHTTPRequest (req, params, time) {
     params = ''
   }
   if (Array.isArray(time) && time.length === 2) {
-    time = util.format(' [%s.%ss]', time[0], parseFloat(time[1]).toFixed(4))
+    time = util.format('%s.%s', time[0], time[1])
+    time = parseFloat(time)
+    if (isNaN(time)) time = 0
+    time = util.format(' [%ss]', time.toFixed(4))
   } else {
     time = ''
   }
@@ -120,7 +123,10 @@ function logHTTPRequest (req, params, time) {
 
 function logHTTPError (req, message, time) {
   if (Array.isArray(time) && time.length === 2) {
-    time = util.format(' [%s.%ss]', time[0], parseFloat(time[1]).toFixed(4))
+    time = util.format('%s.%s', time[0], time[1])
+    time = parseFloat(time)
+    if (isNaN(time)) time = 0
+    time = util.format(' [%ss]', time.toFixed(4))
   } else {
     time = ''
   }
