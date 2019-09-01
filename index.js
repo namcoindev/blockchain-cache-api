@@ -1139,6 +1139,7 @@ if (Config.useNodeMonitor) {
 
       stats.forEach((node) => {
         if (maxFee && node.feeAmount >= maxFee) return
+        if (!node.version) return
         node.version = semver.clean(node.version)
         if (!semver.valid(node.version)) return
         if (minVersion && semver.lt(node.version, minVersion)) return
@@ -1187,6 +1188,7 @@ if (Config.useNodeMonitor) {
       stats.forEach((node) => {
         if (!node.status) return
         if (maxFee && node.feeAmount >= maxFee) return
+        if (!node.version) return
         node.version = semver.clean(node.version)
         if (!semver.valid(node.version)) return
         if (minVersion && semver.lt(node.version, minVersion)) return
@@ -1235,6 +1237,7 @@ if (Config.useNodeMonitor) {
       stats.forEach((node) => {
         if (node.availability === 0) return
         if (maxFee && node.feeAmount >= maxFee) return
+        if (!node.version) return
         node.version = semver.clean(node.version)
         if (!semver.valid(node.version)) return
         if (minVersion && semver.lt(node.version, minVersion)) return
