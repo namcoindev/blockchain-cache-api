@@ -115,7 +115,7 @@ function logHTTPRequest (req, params, time) {
   } else {
     time = ''
   }
-  log(util.format('[REQUEST] (%s) %s %s%s', clientIp(req), req.path, params, time))
+  log(util.format('[REQUEST] %s (%s) %s %s%s', time, clientIp(req), req.path, params).green)
 }
 
 function logHTTPError (req, message, time) {
@@ -125,7 +125,7 @@ function logHTTPError (req, message, time) {
     time = ''
   }
   message = message || 'Parsing error'
-  log(util.format('[ERROR] (%s) %s: %s%s', clientIp(req), req.path, message, time).red)
+  log(util.format('[ERROR] %s (%s) %s: %s%s', time, clientIp(req), req.path, message).red)
 }
 
 /* This is a special magic function to make sure that when
