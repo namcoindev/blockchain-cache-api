@@ -30,7 +30,13 @@ const env = {
     username: process.env.MYSQL_USERNAME || false,
     password: process.env.MYSQL_PASSWORD || false,
     database: process.env.MYSQL_DATABASE || false,
-    connectionLimit: process.env.MYSQL_CONNECTION_LIMIT || 10
+    connectionLimit: process.env.MYSQL_CONNECTION_LIMIT || 10,
+    redis: {
+      host: process.env.REDIS_HOST || '127.0.0.1',
+      port: process.env.REDIS_PORT || 6379,
+      defaultTTL: process.env.REDIS_TTL || 15,
+      enable: Config.useRedisCache || false
+    }
   },
   publicRabbit: {
     host: process.env.RABBIT_PUBLIC_SERVER || 'localhost',
@@ -155,7 +161,8 @@ const database = new DatabaseBackend({
   username: env.mysql.username,
   password: env.mysql.password,
   database: env.mysql.database,
-  connectionLimit: env.mysql.connectionLimit
+  connectionLimit: env.mysql.connectionLimit,
+  redis: env.mysql.redis
 })
 
 log('Connected to database backend at ' + database.host + ':' + database.port)
