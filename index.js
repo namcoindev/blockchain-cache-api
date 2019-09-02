@@ -935,9 +935,11 @@ app.post('/getwalletsyncdata', (req, res) => {
     return res.status(400).send()
   }
 
-  database.legacyGetWalletSyncData(startHeight, startTimestamp, blockHashCheckpoints, blockCount, skipCoinbaseTransactions).then((results, fromBlockHeight) => {
+  database.legacyGetWalletSyncData(startHeight, startTimestamp, blockHashCheckpoints, blockCount, skipCoinbaseTransactions).then((response) => {
+    const results = response.blocks
+
     req.body.blockHashCheckpoints = blockHashCheckpoints.length
-    req.body.from = fromBlockHeight || 0
+    req.body.from = response.from || 0
 
     if (results.length >= 1) {
       req.body.range = {
