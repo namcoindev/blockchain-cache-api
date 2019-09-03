@@ -1304,12 +1304,14 @@ if (Config.useNodeMonitor) {
           history: []
         }
 
-        node.history.forEach((evt) => {
-          obj.history.push({
-            timestamp: evt.timestamp,
-            online: evt.status
+        if (Array.isArray(node.history)) {
+          node.history.forEach((evt) => {
+            obj.history.push({
+              timestamp: evt.timestamp,
+              online: evt.status
+            })
           })
-        })
+        }
 
         obj.history.sort((a, b) => (a.timestamp < b.timestamp) ? 1 : -1)
 
@@ -1466,12 +1468,14 @@ if (Config.usePoolMonitor) {
           history: []
         }
 
-        pool.history.forEach((evt) => {
-          obj.history.push({
-            timestamp: evt.timestamp,
-            online: evt.status
+        if (Array.isArray(pool.history)) {
+          pool.history.forEach((evt) => {
+            obj.history.push({
+              timestamp: evt.timestamp,
+              online: evt.status
+            })
           })
-        })
+        }
 
         obj.history.sort((a, b) => (a.timestamp < b.timestamp) ? 1 : -1)
 
