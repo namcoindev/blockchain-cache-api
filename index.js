@@ -16,8 +16,6 @@ const Helmet = require('helmet')
 const isHex = require('is-hex')
 const RabbitMQ = require('amqplib')
 const semver = require('semver')
-const TurtleCoinNodeMonitor = require('turtlecoin-node-monitor')
-const TurtleCoinPoolMonitor = require('turtlecoin-pool-monitor')
 const TurtleCoinUtils = require('turtlecoin-utils').CryptoNote
 const util = require('util')
 const UUID = require('uuid/v4')
@@ -1126,16 +1124,6 @@ app.get('/status', (req, res) => {
    configured as having access to node monitor data in the
    same database */
 if (Config.useNodeMonitor) {
-/* Set up our access to the node monitor information */
-  const nodes = new TurtleCoinNodeMonitor({
-    host: env.mysql.host,
-    port: env.mysql.port,
-    username: env.mysql.username,
-    password: env.mysql.password,
-    database: env.mysql.database,
-    connectionLimit: env.mysql.connectionLimit
-  })
-
   app.get('/node/list', (req, res) => {
     const start = process.hrtime()
     const maxFee = toNumber(req.query.max_fee) || false
@@ -1146,7 +1134,7 @@ if (Config.useNodeMonitor) {
       if (!semver.valid(minVersion)) minVersion = false
     }
 
-    nodes.getNodeStats().then((stats) => {
+    database.getNodeStats().then((stats) => {
       logHTTPRequest(req, process.hrtime(start))
 
       const response = {
@@ -1194,7 +1182,7 @@ if (Config.useNodeMonitor) {
       if (!semver.valid(minVersion)) minVersion = false
     }
 
-    nodes.getNodeStats().then((stats) => {
+    database.getNodeStats().then((stats) => {
       logHTTPRequest(req, process.hrtime(start))
 
       const response = {
@@ -1243,7 +1231,7 @@ if (Config.useNodeMonitor) {
       if (!semver.valid(minVersion)) minVersion = false
     }
 
-    nodes.getNodeStats().then((stats) => {
+    database.getNodeStats().then((stats) => {
       logHTTPRequest(req, process.hrtime(start))
 
       const response = {
@@ -1285,7 +1273,7 @@ if (Config.useNodeMonitor) {
   app.get('/node/stats', (req, res) => {
     const start = process.hrtime()
 
-    nodes.getNodeStats().then((stats) => {
+    database.getNodeStats().then((stats) => {
       logHTTPRequest(req, process.hrtime(start))
 
       const response = []
@@ -1339,21 +1327,11 @@ if (Config.useNodeMonitor) {
 /* These API methods are only available if we have been
    configured as having access to pool monitor data in the
    same database */
-if (Config.useNodeMonitor) {
-/* Set up our access to the node monitor information */
-  const pools = new TurtleCoinPoolMonitor({
-    host: env.mysql.host,
-    port: env.mysql.port,
-    username: env.mysql.username,
-    password: env.mysql.password,
-    database: env.mysql.database,
-    connectionLimit: env.mysql.connectionLimit
-  })
-
+if (Config.usePoolMonitor) {
   app.get('/pool/list', (req, res) => {
     const start = process.hrtime()
 
-    pools.getPoolStats().then((stats) => {
+    database.getPoolStats().then((stats) => {
       logHTTPRequest(req, process.hrtime(start))
 
       const response = {
@@ -1387,7 +1365,7 @@ if (Config.useNodeMonitor) {
   app.get('/pool/list/online', (req, res) => {
     const start = process.hrtime()
 
-    pools.getPoolStats().then((stats) => {
+    database.getPoolStats().then((stats) => {
       logHTTPRequest(req, process.hrtime(start))
 
       const response = {
@@ -1423,7 +1401,7 @@ if (Config.useNodeMonitor) {
   app.get('/pool/list/available', (req, res) => {
     const start = process.hrtime()
 
-    pools.getPoolStats().then((stats) => {
+    database.getPoolStats().then((stats) => {
       logHTTPRequest(req, process.hrtime(start))
 
       const response = {
@@ -1459,7 +1437,7 @@ if (Config.useNodeMonitor) {
   app.get('/pool/stats', (req, res) => {
     const start = process.hrtime()
 
-    pools.getPoolStats().then((stats) => {
+    database.getPoolStats().then((stats) => {
       logHTTPRequest(req, process.hrtime(start))
 
       const response = []

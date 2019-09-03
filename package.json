@@ -37,8 +37,6 @@
     "random-number-csprng": "^1.0.2",
     "redis": "^2.8.0",
     "semver": "^6.3.0",
-    "turtlecoin-node-monitor": "0.0.6",
-    "turtlecoin-pool-monitor": "0.0.1",
     "turtlecoin-utils": "^1.0.2",
     "uuid": "^3.3.2"
   }
