@@ -603,6 +603,37 @@ app.get('/block/:search', (req, res) => {
   }
 })
 
+app.post('/outputs/:amount', (req, res) => {
+  const start = process.hrtime()
+  const amount = toNumber(req.params.amount) || false
+  const globalIndexes = req.body.globalIndexes || false
+
+  if (!amount) {
+    logHTTPError(req, 'Must specify a valid amount', process.hrtime(start))
+    return res.status(400).send()
+  }
+
+  if (!Array.isArray(globalIndexes)) {
+    logHTTPError(req, 'Must supply an array of globalIndexes', process.hrtime(start))
+    return res.status(400).send()
+  }
+
+  globalIndexes.forEach((offset) => {
+    if (!toNumber(offset)) {
+      logHTTPError(req, 'Must supply only numeric globalIndexes', process.hrtime(start))
+      return res.status(400).send()
+    }
+  })
+
+  database.getAmountKeys(amount, globalIndexes).then((response) => {
+    logHTTPRequest(req, JSON.stringify({ amount: amount, globalIndexes: globalIndexes }), process.hrtime(start))
+    return res.json(response)
+  }).catch((error) => {
+    logHTTPError(req, error, process.hrtime(start))
+    return res.status(500).send()
+  })
+})
+
 /* Get the current transaction pool */
 app.get('/transaction/pool', (req, res) => {
   const start = process.hrtime()
