@@ -33,14 +33,16 @@ const env = {
       host: process.env.REDIS_HOST || '127.0.0.1',
       port: process.env.REDIS_PORT || 6379,
       defaultTTL: process.env.REDIS_TTL || 15,
-      enable: Config.useRedisCache || false
+      enable: process.env.USE_REDIS || Config.useRedisCache || false
     }
   },
   publicRabbit: {
     host: process.env.RABBIT_PUBLIC_SERVER || 'localhost',
     username: process.env.RABBIT_PUBLIC_USERNAME || '',
     password: process.env.RABBIT_PUBLIC_PASSWORD || ''
-  }
+  },
+  useNodeMonitor: process.env.USE_NODE_MONITOR || Config.useNodeMonitor || false,
+  usePoolMonitor: process.env.USE_POOL_MONITOR || Config.usePoolMonitor || false
 }
 
 /* Let's set up a standard logger. Sure it looks cheap but it's
@@ -1154,7 +1156,7 @@ app.get('/status', (req, res) => {
 /* These API methods are only available if we have been
    configured as having access to node monitor data in the
    same database */
-if (Config.useNodeMonitor) {
+if (env.useNodeMonitor) {
   app.get('/node/list', (req, res) => {
     const start = process.hrtime()
     const maxFee = toNumber(req.query.max_fee) || false
@@ -1360,7 +1362,7 @@ if (Config.useNodeMonitor) {
 /* These API methods are only available if we have been
    configured as having access to pool monitor data in the
    same database */
-if (Config.usePoolMonitor) {
+if (env.usePoolMonitor) {
   app.get('/pool/list', (req, res) => {
     const start = process.hrtime()
 

@@ -15,7 +15,7 @@
   },
   "blacklistedIps": [],
   "useCompression": false,
-  "useNodeMonitor": true,
-  "usePoolMonitor": true,
+  "useNodeMonitor": false,
+  "usePoolMonitor": false,
   "useRedisCache": false
 }
