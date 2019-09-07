@@ -112,7 +112,8 @@ function clientIp (req) {
 }
 
 function clientUserAgent (req) {
-  return req.header('user-agent').split(' ', 1).join(' ') || 'unknown'
+  const agent = req.header('user-agent') || 'unknown'
+  return agent.split(' ', 1).join(' ')
 }
 
 function logHTTPRequest (req, params, time) {
