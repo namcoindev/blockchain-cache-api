@@ -16,6 +16,7 @@ const Helmet = require('helmet')
 const isHex = require('is-hex')
 const RabbitMQ = require('amqplib')
 const semver = require('semver')
+const Transaction = require('turtlecoin-utils').Transaction
 const TurtleCoinUtils = require('turtlecoin-utils').CryptoNote
 const util = require('util')
 const UUID = require('uuid/v4')
@@ -120,7 +121,7 @@ function logHTTPRequest (req, params, time) {
     time = util.format('%s.%s', time[0], time[1])
     time = parseFloat(time)
     if (isNaN(time)) time = 0
-    time = util.format(' [%ss]', time.toFixed(4))
+    time = util.format(' [%ss]', time.toFixed(4).padStart(8, ' '))
   } else {
     time = ''
   }
@@ -132,7 +133,7 @@ function logHTTPError (req, message, time) {
     time = util.format('%s.%s', time[0], time[1])
     time = parseFloat(time)
     if (isNaN(time)) time = 0
-    time = util.format(' [%ss]', time.toFixed(4))
+    time = util.format(' [%ss]', time.toFixed(4).padStart(8, ' '))
   } else {
     time = ''
   }
@@ -846,6 +847,17 @@ app.post('/transaction', (req, res) => {
     return res.status(400).send()
   }
 
+  const tx = new Transaction()
+  try {
+    tx.blob = transaction
+  } catch (e) {
+    logHTTPError(req, 'Could not deserialize transaction', process.hrtime(start))
+    return res.status(400).send()
+  }
+
+  const txHash = tx.hash
+  const txBlob = tx.blob
+
   /* generate a random request ID */
   const requestId = UUID().toString().replace(/-/g, '')
 
@@ -864,7 +876,7 @@ app.post('/transaction', (req, res) => {
       }
 
       /* Log and spit back the response */
-      logHTTPRequest(req, JSON.stringify(req.body), process.hrtime(start))
+      logHTTPRequest(req, util.format('[%s] [I:%s] [O:%s] [A:%s] [F:%s] [%s] %s', txHash, tx.inputs.length, tx.outputs.length, tx.amount || 'N/A', tx.fee || 'N/A', response.status.yellow, response.error.red), process.hrtime(start))
       return res.json(response)
     } else {
       /* It wasn't for us, don't acknowledge the message */
@@ -872,14 +884,11 @@ app.post('/transaction', (req, res) => {
     }
   })
 
-  /* Construct a message that our blockchain relay agent understands */
-  const tx = {
-    rawTransaction: transaction,
-    hash: coinUtils.cnFastHash(transaction)
-  }
-
-  /* Send it across to the blockchain relay agent workers */
-  publicChannel.sendToQueue(Config.queues.relayAgent, Buffer.from(JSON.stringify(tx)), {
+  /* Send the transaction across to the blockchain relay agent workers */
+  publicChannel.sendToQueue(Config.queues.relayAgent, Buffer.from(JSON.stringify({
+    rawTransaction: txBlob,
+    hash: txHash
+  })), {
     correlationId: requestId,
     replyTo: replyQueue.queue,
     expiration: 5000
@@ -1067,6 +1076,17 @@ app.post('/sendrawtransaction', (req, res) => {
     return res.status(400).send()
   }
 
+  const tx = new Transaction()
+  try {
+    tx.blob = transaction
+  } catch (e) {
+    logHTTPError(req, 'Could not deserialize transaction', process.hrtime(start))
+    return res.status(400).send()
+  }
+
+  const txHash = tx.hash
+  const txBlob = tx.blob
+
   /* generate a random request ID */
   const requestId = UUID().toString().replace(/-/g, '')
 
@@ -1085,7 +1105,7 @@ app.post('/sendrawtransaction', (req, res) => {
       }
 
       /* Log and spit back the response */
-      logHTTPRequest(req, JSON.stringify(req.body) + '[' + response.status.yellow + ']', process.hrtime(start))
+      logHTTPRequest(req, util.format('[%s] [I:%s] [O:%s] [A:%s] [F:%s] [%s] %s', txHash, tx.inputs.length, tx.outputs.length, tx.amount || 'N/A', tx.fee || 'N/A', response.status.yellow, response.error.red), process.hrtime(start))
       return res.json(response)
     } else {
       /* It wasn't for us, don't acknowledge the message */
@@ -1093,14 +1113,11 @@ app.post('/sendrawtransaction', (req, res) => {
     }
   })
 
-  /* Construct a message that our blockchain relay agent understands */
-  const tx = {
-    rawTransaction: transaction,
-    hash: coinUtils.cnFastHash(transaction)
-  }
-
-  /* Send it across to the blockchain relay agent workers */
-  publicChannel.sendToQueue(Config.queues.relayAgent, Buffer.from(JSON.stringify(tx)), {
+  /* Send the transaction across to the blockchain relay agent workers */
+  publicChannel.sendToQueue(Config.queues.relayAgent, Buffer.from(JSON.stringify({
+    rawTransaction: txBlob,
+    hash: txHash
+  })), {
     correlationId: requestId,
     replyTo: replyQueue.queue,
     expiration: 5000
