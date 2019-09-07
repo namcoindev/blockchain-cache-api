@@ -111,6 +111,10 @@ function clientIp (req) {
   return req.header('x-forwarded-for') || req.ip
 }
 
+function clientUserAgent (req) {
+  return req.header('user-agent').split(' ', 1).join(' ') || 'unknown'
+}
+
 function logHTTPRequest (req, params, time) {
   params = params || ''
   if (!time && Array.isArray(params) && params.length === 2 && !isNaN(params[0]) && !isNaN(params[1])) {
@@ -125,7 +129,7 @@ function logHTTPRequest (req, params, time) {
   } else {
     time = ''
   }
-  log(util.format('[REQUEST]%s [%s] %s %s', time, clientIp(req).padStart(15, ' '), req.path, params).green)
+  log(util.format('[REQUEST]%s [%s] (%s) %s %s', time, clientIp(req).padStart(15, ' '), clientUserAgent(req), req.path, params).green)
 }
 
 function logHTTPError (req, message, time) {
@@ -138,7 +142,7 @@ function logHTTPError (req, message, time) {
     time = ''
   }
   message = message || 'Parsing error'
-  log(util.format('[ERROR]%s [%s] %s: %s', time, clientIp(req).padStart(15, ' '), req.path, message).red)
+  log(util.format('[ERROR]%s [%s] (%s) %s: %s', time, clientIp(req).padStart(15, ' '), clientUserAgent(req), req.path, message).red)
 }
 
 /* This is a special magic function to make sure that when
