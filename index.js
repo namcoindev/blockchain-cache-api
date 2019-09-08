@@ -1106,7 +1106,7 @@ app.post('/sendrawtransaction', (req, res) => {
       }
 
       /* Log and spit back the response */
-      logHTTPRequest(req, util.format('[%s] [I:%s] [O:%s] [A:%s] [F:%s] [%s] %s', txHash, tx.inputs.length, tx.outputs.length, tx.amount || 'N/A', tx.fee || 'N/A', response.status.yellow, response.error.red), process.hrtime(start))
+      logHTTPRequest(req, util.format('[%s] [I:%s] [O:%s] [A:%s] [F:%s] [%s] %s', txHash, tx.inputs.length, tx.outputs.length, tx.amount || 'N/A', tx.fee || 'N/A', (response.status) ? response.status.yellow : 'Error'.red, response.error.red), process.hrtime(start))
       return res.json(response)
     } else {
       /* It wasn't for us, don't acknowledge the message */
