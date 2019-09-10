@@ -1,6 +1,6 @@
 {
   "name": "blockchain-cache-api",
-  "version": "0.0.17",
+  "version": "0.0.18",
   "description": "TurtlePay: Blockchain Cache API",
   "main": "index.js",
   "scripts": {
@@ -31,13 +31,13 @@
     "compression": "^1.7.4",
     "dotenv": "^8.0.0",
     "express": "^4.17.1",
-    "helmet": "^3.20.1",
+    "helmet": "^3.21.0",
     "is-hex": "^1.1.3",
     "mysql": "^2.17.1",
     "random-number-csprng": "^1.0.2",
     "redis": "^2.8.0",
     "semver": "^6.3.0",
-    "turtlecoin-utils": "^1.0.2",
+    "turtlecoin-utils": "^1.0.5",
     "uuid": "^3.3.2"
   }
 }
