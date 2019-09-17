@@ -367,7 +367,7 @@ app.post('/block', (req, res) => {
   /* Set up our cancel timer in case the message doesn't get handled */
   cancelTimer = setTimeout(() => {
     logHTTPError(req, 'Could not complete request with relay agent', process.hrtime(start))
-    return res.status(500).send()
+    return res.status(504).send()
   }, 5500)
 })
 
@@ -568,7 +568,7 @@ app.post('/block/template', (req, res) => {
   /* Set up our cancel timer in case the message doesn't get handled */
   cancelTimer = setTimeout(() => {
     logHTTPError(req, 'Could not complete request with relay agent', process.hrtime(start))
-    return res.status(500).send()
+    return res.status(504).send()
   }, 5500)
 })
 
@@ -881,8 +881,12 @@ app.post('/transaction', (req, res) => {
       }
 
       /* Log and spit back the response */
-      logHTTPRequest(req, util.format('[%s] [I:%s] [O:%s] [A:%s] [F:%s] [%s] %s', txHash, tx.inputs.length, tx.outputs.length, tx.amount || 'N/A', tx.fee || 'N/A', response.status.yellow, response.error.red), process.hrtime(start))
-      return res.json(response)
+      logHTTPRequest(req, util.format('[%s] [I:%s] [O:%s] [A:%s] [F:%s] [%s] %s', txHash, tx.inputs.length, tx.outputs.length, tx.amount || 'N/A', tx.fee || 'N/A', (response.status) ? response.status.yellow : 'Error'.red, response.error.red), process.hrtime(start))
+      if (response.status) {
+        return res.json(response)
+      } else {
+        return res.status(504).send()
+      }
     } else {
       /* It wasn't for us, don't acknowledge the message */
       publicChannel.nack(message)
@@ -902,7 +906,7 @@ app.post('/transaction', (req, res) => {
   /* Set up our cancel timer in case the message doesn't get handled */
   cancelTimer = setTimeout(() => {
     logHTTPError(req, 'Could not complete request with relay agent', process.hrtime(start))
-    return res.status(500).send()
+    return res.status(504).send()
   }, 9500)
 })
 
@@ -1107,7 +1111,11 @@ app.post('/sendrawtransaction', (req, res) => {
 
       /* Log and spit back the response */
       logHTTPRequest(req, util.format('[%s] [I:%s] [O:%s] [A:%s] [F:%s] [%s] %s', txHash, tx.inputs.length, tx.outputs.length, tx.amount || 'N/A', tx.fee || 'N/A', (response.status) ? response.status.yellow : 'Error'.red, response.error.red), process.hrtime(start))
-      return res.json(response)
+      if (response.status) {
+        return res.json(response)
+      } else {
+        return res.status(504).send()
+      }
     } else {
       /* It wasn't for us, don't acknowledge the message */
       publicChannel.nack(message)
@@ -1127,7 +1135,7 @@ app.post('/sendrawtransaction', (req, res) => {
   /* Set up our cancel timer in case the message doesn't get handled */
   cancelTimer = setTimeout(() => {
     logHTTPError(req, 'Could not complete request with relay agent', process.hrtime(start))
-    return res.status(500).send()
+    return res.status(504).send()
   }, 9500)
 })
 
