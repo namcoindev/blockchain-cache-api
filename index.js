@@ -896,14 +896,14 @@ app.post('/transaction', (req, res) => {
   })), {
     correlationId: requestId,
     replyTo: replyQueue.queue,
-    expiration: 10000
+    expiration: 9000
   })
 
   /* Set up our cancel timer in case the message doesn't get handled */
   cancelTimer = setTimeout(() => {
     logHTTPError(req, 'Could not complete request with relay agent', process.hrtime(start))
     return res.status(500).send()
-  }, 10500)
+  }, 9500)
 })
 
 /* Legacy daemon API calls provided for limited support */
@@ -1121,14 +1121,14 @@ app.post('/sendrawtransaction', (req, res) => {
   })), {
     correlationId: requestId,
     replyTo: replyQueue.queue,
-    expiration: 10000
+    expiration: 9000
   })
 
   /* Set up our cancel timer in case the message doesn't get handled */
   cancelTimer = setTimeout(() => {
     logHTTPError(req, 'Could not complete request with relay agent', process.hrtime(start))
     return res.status(500).send()
-  }, 10500)
+  }, 9500)
 })
 
 /* Returns the last block reward */
