@@ -1,4 +1,4 @@
-# TurtlePay™ Blockchain Cache API
+# TurtlePay® Blockchain Cache API
 
 #### Master Build Status
 [![Build Status](https://travis-ci.org/TurtlePay/blockchain-cache-api.svg?branch=master)](https://travis-ci.org/TurtlePay/blockchain-cache-api) [![Build status](https://ci.appveyor.com/api/projects/status/github/TurtlePay/blockchain-cache-api?branch=master&svg=true)](https://ci.appveyor.com/project/brandonlehmann/blockchain-cache-api/branch/master)
@@ -7,8 +7,8 @@
 
 * MariaDB/MySQL with InnoDB support
 * [RabbitMQ](https://www.rabbitmq.com/)
-* [TurtlePay: Blockchain Data Collection Agent](https://github.com/TurtlePay/blockchain-data-collection-agent)
-* [TurtlePay: Blockchain Relay Agent](https://github.com/TurtlePay/blockchain-relay-agent)
+* [TurtlePay®: Blockchain Data Collection Agent](https://github.com/TurtlePay/blockchain-data-collection-agent)
+* [TurtlePay®: Blockchain Relay Agent](https://github.com/TurtlePay/blockchain-relay-agent)
 * [Node.js](https://nodejs.org/) LTS
 
 ## Foreword
@@ -68,4 +68,4 @@ pm2 save
 
 See https://docs.turtlepay.io/blockapi/ for the full REST API provided by this package.
 
-###### (c) 2018 TurtlePay™ Development Team
+###### (c) 2018-2019 TurtlePay® Development Team
