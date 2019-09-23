@@ -201,6 +201,9 @@ app.use((req, res, next) => {
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept')
   res.header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
   res.header('Cache-Control', 'max-age=30, public')
+  res.header('Referrer-Policy', 'no-referrer')
+  res.header('Content-Security-Policy', 'default-src \'none\'')
+  res.header('Feature-Policy', 'geolocation none;midi none;notifications none;push none;sync-xhr none;microphone none;camera none;magnetometer none;gyroscope none;speaker self;vibrate none;fullscreen self;payment none;')
   next()
 })
 
