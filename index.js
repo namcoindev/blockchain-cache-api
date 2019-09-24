@@ -9,6 +9,7 @@ const BigInteger = require('big-integer')
 const BodyParser = require('body-parser')
 require('colors')
 const Compression = require('compression')
+const CoinUtils = new (require('turtlecoin-utils').CryptoNote)()
 const Config = require('./config.json')
 const DatabaseBackend = require('./lib/databaseBackend.js')
 const Express = require('express')
@@ -18,7 +19,6 @@ const isHex = require('is-hex')
 const RabbitMQ = require('./lib/rabbit.js')
 const semver = require('semver')
 const Transaction = require('turtlecoin-utils').Transaction
-const TurtleCoinUtils = require('turtlecoin-utils').CryptoNote
 const util = require('util')
 
 /* Load in our environment variables */
@@ -57,9 +57,6 @@ if (!env.mysql.host || !env.mysql.port || !env.mysql.username || !env.mysql.pass
   process.exit(1)
 }
 
-/* Create an instance of the TurtleCoin Utils */
-const coinUtils = new TurtleCoinUtils()
-
 /* Set up our database connection */
 const database = new DatabaseBackend({
   host: env.mysql.host,
@@ -73,10 +70,15 @@ const database = new DatabaseBackend({
 
 Helpers.log('[DB] Connected to database backend at ' + database.host + ':' + database.port)
 
-/* Set up our RabbitMQ Connection */
+/* Set up our RabbitMQ Helper */
 const rabbit = new RabbitMQ(env.publicRabbit.host, env.publicRabbit.username, env.publicRabbit.password)
-rabbit.on('log', log => { Helpers.log(util.format('[RABBIT] %s', log)) })
-rabbit.on('connect', () => { Helpers.log(util.format('[RABBIT] connected to server at %s', env.publicRabbit.host)) })
+rabbit.on('log', log => {
+  Helpers.log(util.format('[RABBIT] %s', log))
+})
+
+rabbit.on('connect', () => {
+  Helpers.log(util.format('[RABBIT] connected to server at %s', env.publicRabbit.host))
+})
 
 rabbit.connect().then(() => {
   const app = Express()
@@ -380,7 +382,7 @@ rabbit.connect().then(() => {
     }
 
     try {
-      coinUtils.decodeAddress(address)
+      CoinUtils.decodeAddress(address)
     } catch (e) {
       error = 'Invalid address supplied'
       Helpers.logHTTPError(req, error, process.hrtime(start))
@@ -707,6 +709,7 @@ rabbit.connect().then(() => {
     }, 9000).then((response) => {
       /* Log and spit back the response */
       Helpers.logHTTPRequest(req, util.format('[%s] [I:%s] [O:%s] [A:%s] [F:%s] [%s] %s', txHash, tx.inputs.length, tx.outputs.length, tx.amount || 'N/A', tx.fee || 'N/A', (response.status) ? response.status.yellow : 'Error'.red, response.error.red), process.hrtime(start))
+
       if (response.status) {
         return res.json(response)
       } else {
@@ -905,6 +908,7 @@ rabbit.connect().then(() => {
     }, 9000).then((response) => {
       /* Log and spit back the response */
       Helpers.logHTTPRequest(req, util.format('[%s] [I:%s] [O:%s] [A:%s] [F:%s] [%s] %s', txHash, tx.inputs.length, tx.outputs.length, tx.amount || 'N/A', tx.fee || 'N/A', (response.status) ? response.status.yellow : 'Error'.red, response.error.red), process.hrtime(start))
+
       if (response.status) {
         return res.json(response)
       } else {
@@ -1341,5 +1345,6 @@ rabbit.connect().then(() => {
     Helpers.log('[HTTP] Server started on ' + Config.bindIp + ':' + Config.httpPort)
   })
 }).catch((error) => {
-  Helpers.log(util.format('[RABBIT] %s', error.toString()))
+  Helpers.log(util.format('[ERROR] %s', error.toString().red))
+  process.exit(1)
 })
