@@ -46,6 +46,10 @@ const env = {
   usePoolMonitor: process.env.USE_POOL_MONITOR || Config.usePoolMonitor || false
 }
 
+if (!process.env.NODE_ENV || process.env.NODE_ENV.toLowerCase() !== 'production') {
+  Helpers.log('[WARNING] Node.js is not running in production mode. Consider running in production mode: export NODE_ENV=production'.yellow)
+}
+
 /* Sanity check to make sure we have connection information
    for the database */
 if (!env.mysql.host || !env.mysql.port || !env.mysql.username || !env.mysql.password) {
