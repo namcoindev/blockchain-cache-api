@@ -53,7 +53,7 @@ if (!process.env.NODE_ENV || process.env.NODE_ENV.toLowerCase() !== 'production'
 /* Sanity check to make sure we have connection information
    for the database */
 if (!env.mysql.host || !env.mysql.port || !env.mysql.username || !env.mysql.password) {
-  Helpers.log('It looks like you did not export all of the required connection information into your environment variables before attempting to start the service.')
+  Helpers.log('[ERROR] It looks like you did not export all of the required connection information into your environment variables before attempting to start the service.'.red)
   process.exit(1)
 }
 
