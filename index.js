@@ -13,6 +13,7 @@ const Config = require('./config.json')
 const DatabaseBackend = require('./lib/databaseBackend.js')
 const Express = require('express')
 const Helmet = require('helmet')
+const Helpers = require('./lib/helpers.js')
 const isHex = require('is-hex')
 const RabbitMQ = require('./lib/rabbit.js')
 const semver = require('semver')
@@ -45,72 +46,11 @@ const env = {
   usePoolMonitor: process.env.USE_POOL_MONITOR || Config.usePoolMonitor || false
 }
 
-/* Let's set up a standard logger. Sure it looks cheap but it's
-   reliable and won't crash */
-function log (message) {
-  console.log(util.format('%s: %s', (new Date()).toUTCString(), message))
-}
-
 /* Sanity check to make sure we have connection information
    for the database */
 if (!env.mysql.host || !env.mysql.port || !env.mysql.username || !env.mysql.password) {
-  log('It looks like you did not export all of the required connection information into your environment variables before attempting to start the service.')
+  Helpers.log('It looks like you did not export all of the required connection information into your environment variables before attempting to start the service.')
   process.exit(1)
-}
-
-/* Helper functions */
-
-function clientIp (req) {
-  return req.header('x-forwarded-for') || req.ip
-}
-
-function clientUserAgent (req) {
-  const agent = req.header('user-agent') || 'unknown'
-  return agent.split(' ', 1).join(' ')
-}
-
-function logHTTPRequest (req, params, time) {
-  params = params || ''
-  if (!time && Array.isArray(params) && params.length === 2 && !isNaN(params[0]) && !isNaN(params[1])) {
-    time = params
-    params = ''
-  }
-  if (Array.isArray(time) && time.length === 2) {
-    time = util.format('%s.%s', time[0], time[1])
-    time = parseFloat(time)
-    if (isNaN(time)) time = 0
-    time = util.format(' [%ss]', time.toFixed(4).padStart(8, ' '))
-  } else {
-    time = ''
-  }
-  log(util.format('[REQUEST]%s [%s] (%s) %s %s', time, clientIp(req).padStart(15, ' '), clientUserAgent(req), req.path, params).green)
-}
-
-function logHTTPError (req, message, time) {
-  if (Array.isArray(time) && time.length === 2) {
-    time = util.format('%s.%s', time[0], time[1])
-    time = parseFloat(time)
-    if (isNaN(time)) time = 0
-    time = util.format(' [%ss]', time.toFixed(4).padStart(8, ' '))
-  } else {
-    time = ''
-  }
-  message = message || 'Parsing error'
-  log(util.format('[ERROR]%s [%s] (%s) %s: %s', time, clientIp(req).padStart(15, ' '), clientUserAgent(req), req.path, message).red)
-}
-
-/* This is a special magic function to make sure that when
-   we parse a number that the whole thing is actually a
-   number */
-function toNumber (term) {
-  if (typeof term === 'number') {
-    return term
-  }
-  if (parseInt(term).toString() === term) {
-    return parseInt(term)
-  } else {
-    return false
-  }
 }
 
 /* Create an instance of the TurtleCoin Utils */
@@ -127,18 +67,18 @@ const database = new DatabaseBackend({
   redis: env.mysql.redis
 })
 
-log('[DB] Connected to database backend at ' + database.host + ':' + database.port)
+Helpers.log('[DB] Connected to database backend at ' + database.host + ':' + database.port)
 
 /* Set up our RabbitMQ Connection */
 const rabbit = new RabbitMQ(env.publicRabbit.host, env.publicRabbit.username, env.publicRabbit.password)
-rabbit.on('log', log => { log(util.format('[RABBIT] %s', log)) })
-rabbit.on('connect', () => { log(util.format('[RABBIT] connected to server at %s', env.publicRabbit.host)) })
+rabbit.on('log', log => { Helpers.log(util.format('[RABBIT] %s', log)) })
+rabbit.on('connect', () => { Helpers.log(util.format('[RABBIT] connected to server at %s', env.publicRabbit.host)) })
 
 rabbit.connect().then(() => {
   const app = Express()
 
   app.use((req, res, next) => {
-    const ip = clientIp(req)
+    const ip = Helpers.requestIp(req)
     if (Config.blacklistedIps.indexOf(ip) !== -1) {
       return res.status(403).send()
     }
@@ -181,11 +121,11 @@ rabbit.connect().then(() => {
   app.get('/info', (req, res) => {
     const start = process.hrtime()
     database.getInfo().then((info) => {
-      logHTTPRequest(req, process.hrtime(start))
+      Helpers.logHTTPRequest(req, process.hrtime(start))
       info.isCacheApi = true
       return res.json(info)
     }).catch((error) => {
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(500).send()
     })
   })
@@ -193,11 +133,11 @@ rabbit.connect().then(() => {
   app.get('/getinfo', (req, res) => {
     const start = process.hrtime()
     database.getInfo().then((info) => {
-      logHTTPRequest(req, process.hrtime(start))
+      Helpers.logHTTPRequest(req, process.hrtime(start))
       info.isCacheApi = true
       return res.json(info)
     }).catch((error) => {
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(500).send()
     })
   })
@@ -210,7 +150,7 @@ rabbit.connect().then(() => {
       networkData = info
       return database.getLastBlockHeader()
     }).then((header) => {
-      logHTTPRequest(req, process.hrtime(start))
+      Helpers.logHTTPRequest(req, process.hrtime(start))
       /* We shave one off the cached network_height as the underlying daemons
        misreport this information. The network_height indicates the block
        that the network is looking for, not the last block it found */
@@ -219,7 +159,7 @@ rabbit.connect().then(() => {
         network_height: networkData.network_height - 1
       })
     }).catch((error) => {
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(500).send()
     })
   })
@@ -232,7 +172,7 @@ rabbit.connect().then(() => {
       networkData = info
       return database.getLastBlockHeader()
     }).then((header) => {
-      logHTTPRequest(req, process.hrtime(start))
+      Helpers.logHTTPRequest(req, process.hrtime(start))
       /* We shave one off the cached network_height as the underlying daemons
        misreport this information. The network_height indicates the block
        that the network is looking for, not the last block it found */
@@ -241,7 +181,7 @@ rabbit.connect().then(() => {
         network_height: networkData.network_height - 1
       })
     }).catch((error) => {
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(500).send()
     })
   })
@@ -250,11 +190,11 @@ rabbit.connect().then(() => {
   app.get('/supply', (req, res) => {
     const start = process.hrtime()
     database.getLastBlockHeader().then((header) => {
-      logHTTPRequest(req, process.hrtime(start))
+      Helpers.logHTTPRequest(req, process.hrtime(start))
       const supply = (header.alreadyGeneratedCoins / Math.pow(10, Config.coinDecimals)).toFixed(Config.coinDecimals).toString()
       return res.send(supply)
     }).catch((error) => {
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(500).send()
     })
   })
@@ -264,10 +204,10 @@ rabbit.connect().then(() => {
   app.get('/chain/stats', (req, res) => {
     const start = process.hrtime()
     database.getRecentChainStats().then((blocks) => {
-      logHTTPRequest(req, process.hrtime(start))
+      Helpers.logHTTPRequest(req, process.hrtime(start))
       return res.json(blocks)
     }).catch((error) => {
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(500).send()
     })
   })
@@ -279,7 +219,7 @@ rabbit.connect().then(() => {
 
     if (!blockBlob || !isHex(blockBlob)) {
       const message = 'Invalid block blob format'
-      logHTTPError(req, message, process.hrtime(start))
+      Helpers.logHTTPError(req, message, process.hrtime(start))
       return res.status(400).json({ message: message })
     }
 
@@ -288,15 +228,15 @@ rabbit.connect().then(() => {
     }, 5000).then((response) => {
       if (response.error) {
         /* Log and spit back the response */
-        logHTTPError(req, JSON.stringify(req.body), process.hrtime(start))
+        Helpers.logHTTPError(req, JSON.stringify(req.body), process.hrtime(start))
         return res.status(400).json({ message: response.error })
       } else {
         /* Log and spit back the response */
-        logHTTPRequest(req, JSON.stringify(req.body), process.hrtime(start))
+        Helpers.logHTTPRequest(req, JSON.stringify(req.body), process.hrtime(start))
         return res.send(201).send()
       }
     }).catch(() => {
-      logHTTPError(req, 'Could not complete request with relay agent', process.hrtime(start))
+      Helpers.logHTTPError(req, 'Could not complete request with relay agent', process.hrtime(start))
       return res.status(504).send()
     })
   })
@@ -305,20 +245,20 @@ rabbit.connect().then(() => {
    the specified block inclusive of the specified blocks */
   app.get('/block/headers/:search/bulk', (req, res) => {
     const start = process.hrtime()
-    const idx = toNumber(req.params.search) || -1
+    const idx = Helpers.toNumber(req.params.search) || -1
 
     /* If the caller did not specify a valid height then
      they most certainly didn't read the directions */
     if (idx === -1) {
-      logHTTPError(req, 'No valid height provided', process.hrtime(start))
+      Helpers.logHTTPError(req, 'No valid height provided', process.hrtime(start))
       return res.status(400).send()
     }
 
     database.getBlocks(idx, 1000).then((blocks) => {
-      logHTTPRequest(req, process.hrtime(start))
+      Helpers.logHTTPRequest(req, process.hrtime(start))
       return res.json(blocks)
     }).catch((error) => {
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(500).send()
     })
   })
@@ -327,20 +267,20 @@ rabbit.connect().then(() => {
    the specified block inclusive of the specified block */
   app.get('/block/headers/:search', (req, res) => {
     const start = process.hrtime()
-    const idx = toNumber(req.params.search) || -1
+    const idx = Helpers.toNumber(req.params.search) || -1
 
     /* If the caller did not specify a valid height then
      they most certainly didn't read the directions */
     if (idx === -1) {
-      logHTTPError(req, 'No valid height provided', process.hrtime(start))
+      Helpers.logHTTPError(req, 'No valid height provided', process.hrtime(start))
       return res.status(400).send()
     }
 
     database.getBlocks(idx).then((blocks) => {
-      logHTTPRequest(req, process.hrtime(start))
+      Helpers.logHTTPRequest(req, process.hrtime(start))
       return res.json(blocks)
     }).catch((error) => {
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(500).send()
     })
   })
@@ -349,10 +289,10 @@ rabbit.connect().then(() => {
   app.get('/block/header/top', (req, res) => {
     const start = process.hrtime()
     database.getLastBlockHeader().then((header) => {
-      logHTTPRequest(req, process.hrtime(start))
+      Helpers.logHTTPRequest(req, process.hrtime(start))
       return res.json(header)
     }).catch((error) => {
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(500).send()
     })
   })
@@ -366,29 +306,29 @@ rabbit.connect().then(() => {
     if (idx.length === 64) {
     /* But first, did they pass us only hexadecimal characters ? */
       if (!isHex(idx)) {
-        logHTTPError(req, 'Block hash is not in a valid format', process.hrtime(start))
+        Helpers.logHTTPError(req, 'Block hash is not in a valid format', process.hrtime(start))
         return res.status(400).send()
       }
 
       database.getBlockHeaderByHash(idx).then((header) => {
-        logHTTPRequest(req, process.hrtime(start))
+        Helpers.logHTTPRequest(req, process.hrtime(start))
         return res.json(header)
       }).catch((error) => {
-        logHTTPError(req, error, process.hrtime(start))
+        Helpers.logHTTPError(req, error, process.hrtime(start))
         return res.status(404).send()
       })
     } else {
     /* If they didn't pass us a number, we need to get out of here */
-      if (toNumber(idx) === false) {
-        logHTTPError(req, 'Block height is not a number', process.hrtime(start))
+      if (Helpers.toNumber(idx) === false) {
+        Helpers.logHTTPError(req, 'Block height is not a number', process.hrtime(start))
         return res.status(400).send()
       }
 
       database.getBlockHeaderByHeight(idx).then((header) => {
-        logHTTPRequest(req, process.hrtime(start))
+        Helpers.logHTTPRequest(req, process.hrtime(start))
         return res.json(header)
       }).catch((error) => {
-        logHTTPError(req, error, process.hrtime(start))
+        Helpers.logHTTPError(req, error, process.hrtime(start))
         return res.status(404).send()
       })
     }
@@ -398,12 +338,12 @@ rabbit.connect().then(() => {
   app.get('/block/count', (req, res) => {
     const start = process.hrtime()
     database.getBlockCount().then((count) => {
-      logHTTPRequest(req, process.hrtime(start))
+      Helpers.logHTTPRequest(req, process.hrtime(start))
       return res.json({
         blockCount: count
       })
     }).catch((error) => {
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(500).send()
     })
   })
@@ -412,26 +352,26 @@ rabbit.connect().then(() => {
   app.post('/block/template', (req, res) => {
     const start = process.hrtime()
     const address = req.body.address || false
-    const reserveSize = toNumber(req.body.reserveSize)
+    const reserveSize = Helpers.toNumber(req.body.reserveSize)
 
     /* If they didn't provide a reserve size then there's little we can do here */
     if (!reserveSize) {
       var error = 'Missing reserveSize value'
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(400).json({ message: error })
     }
 
     /* If the reserveSize is out of range, then throw an error */
     if (reserveSize < 0 || reserveSize > 255) {
       error = 'reserveSize out of range'
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(400).json({ message: error })
     }
 
     /* To get a block template, an address must be supplied */
     if (!address) {
       error = 'Missing address value'
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(400).json({ message: error })
     }
 
@@ -439,7 +379,7 @@ rabbit.connect().then(() => {
       coinUtils.decodeAddress(address)
     } catch (e) {
       error = 'Invalid address supplied'
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(400).json({ message: error })
     }
 
@@ -449,11 +389,11 @@ rabbit.connect().then(() => {
     }, 5000).then((response) => {
       if (response.error) {
         /* Log and spit back the response */
-        logHTTPError(req, JSON.stringify(req.body), process.hrtime(start))
+        Helpers.logHTTPError(req, JSON.stringify(req.body), process.hrtime(start))
         return res.status(400).json({ message: response.error })
       } else {
         /* Log and spit back the response */
-        logHTTPRequest(req, JSON.stringify(req.body), process.hrtime(start))
+        Helpers.logHTTPRequest(req, JSON.stringify(req.body), process.hrtime(start))
         return res.json({
           blocktemplate: response.blocktemplate_blob,
           difficulty: response.difficulty,
@@ -462,7 +402,7 @@ rabbit.connect().then(() => {
         })
       }
     }).catch(() => {
-      logHTTPError(req, 'Could not complete request with relay agent', process.hrtime(start))
+      Helpers.logHTTPError(req, 'Could not complete request with relay agent', process.hrtime(start))
       return res.status(504).send()
     })
   })
@@ -476,31 +416,31 @@ rabbit.connect().then(() => {
     if (idx.length === 64) {
     /* But first, did they pass us only hexadecimal characters ? */
       if (!isHex(idx)) {
-        logHTTPError(req, 'Block hash supplied is not in a valid format', process.hrtime(start))
+        Helpers.logHTTPError(req, 'Block hash supplied is not in a valid format', process.hrtime(start))
         return res.status(400).send()
       }
 
       database.getBlock(idx).then((block) => {
-        logHTTPRequest(req, process.hrtime(start))
+        Helpers.logHTTPRequest(req, process.hrtime(start))
         return res.json(block)
       }).catch((error) => {
-        logHTTPError(req, error, process.hrtime(start))
+        Helpers.logHTTPError(req, error, process.hrtime(start))
         return res.status(404).send()
       })
     } else {
     /* If they didn't pass us a number, we need to get out of here */
-      if (toNumber(idx) === false) {
-        logHTTPError(req, 'Block height supplied is not a valid number', process.hrtime(start))
+      if (Helpers.toNumber(idx) === false) {
+        Helpers.logHTTPError(req, 'Block height supplied is not a valid number', process.hrtime(start))
         return res.status(400).send()
       }
 
       database.getBlockHeaderByHeight(idx).then((header) => {
         return database.getBlock(header.hash)
       }).then((block) => {
-        logHTTPRequest(req, process.hrtime(start))
+        Helpers.logHTTPRequest(req, process.hrtime(start))
         return res.json(block)
       }).catch((error) => {
-        logHTTPError(req, error, process.hrtime(start))
+        Helpers.logHTTPError(req, error, process.hrtime(start))
         return res.status(404).send()
       })
     }
@@ -508,31 +448,31 @@ rabbit.connect().then(() => {
 
   app.post('/outputs/:amount', (req, res) => {
     const start = process.hrtime()
-    const amount = toNumber(req.params.amount) || false
+    const amount = Helpers.toNumber(req.params.amount) || false
     const globalIndexes = req.body.globalIndexes || false
 
     if (!amount) {
-      logHTTPError(req, 'Must specify a valid amount', process.hrtime(start))
+      Helpers.logHTTPError(req, 'Must specify a valid amount', process.hrtime(start))
       return res.status(400).send()
     }
 
     if (!Array.isArray(globalIndexes)) {
-      logHTTPError(req, 'Must supply an array of globalIndexes', process.hrtime(start))
+      Helpers.logHTTPError(req, 'Must supply an array of globalIndexes', process.hrtime(start))
       return res.status(400).send()
     }
 
     globalIndexes.forEach((offset) => {
-      if (!toNumber(offset)) {
-        logHTTPError(req, 'Must supply only numeric globalIndexes', process.hrtime(start))
+      if (!Helpers.toNumber(offset)) {
+        Helpers.logHTTPError(req, 'Must supply only numeric globalIndexes', process.hrtime(start))
         return res.status(400).send()
       }
     })
 
     database.getAmountKeys(amount, globalIndexes).then((response) => {
-      logHTTPRequest(req, JSON.stringify({ amount: amount, globalIndexes: globalIndexes }), process.hrtime(start))
+      Helpers.logHTTPRequest(req, JSON.stringify({ amount: amount, globalIndexes: globalIndexes }), process.hrtime(start))
       return res.json(response)
     }).catch((error) => {
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(500).send()
     })
   })
@@ -541,10 +481,10 @@ rabbit.connect().then(() => {
   app.get('/transaction/pool', (req, res) => {
     const start = process.hrtime()
     database.getTransactionPool().then((transactions) => {
-      logHTTPRequest(req, process.hrtime(start))
+      Helpers.logHTTPRequest(req, process.hrtime(start))
       return res.json(transactions)
     }).catch((error) => {
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(500).send()
     })
   })
@@ -556,15 +496,15 @@ rabbit.connect().then(() => {
 
     /* We need to check to make sure that they sent us 64 hexadecimal characters */
     if (!isHex(idx) || idx.length !== 64) {
-      logHTTPError(req, 'Transaction hash supplied is not in a valid format', process.hrtime(start))
+      Helpers.logHTTPError(req, 'Transaction hash supplied is not in a valid format', process.hrtime(start))
       return res.status(400).send()
     }
 
     database.getTransaction(idx).then((transaction) => {
-      logHTTPRequest(req, process.hrtime(start))
+      Helpers.logHTTPRequest(req, process.hrtime(start))
       return res.json(transaction)
     }).catch((error) => {
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(404).send()
     })
   })
@@ -576,19 +516,19 @@ rabbit.connect().then(() => {
 
     /* We need to check to make sure that they sent us 64 hexadecimal characters */
     if (!isHex(idx) || idx.length !== 64) {
-      logHTTPError(req, 'Transaction hash supplied is not in a valid format', process.hrtime(start))
+      Helpers.logHTTPError(req, 'Transaction hash supplied is not in a valid format', process.hrtime(start))
       return res.status(400).send()
     }
 
     database.getTransactionInputs(idx).then((inputs) => {
       if (inputs.length === 0) {
-        logHTTPRequest(req, process.hrtime(start))
+        Helpers.logHTTPRequest(req, process.hrtime(start))
         return res.status(404).send()
       }
-      logHTTPRequest(req, process.hrtime(start))
+      Helpers.logHTTPRequest(req, process.hrtime(start))
       return res.json(inputs)
     }).catch((error) => {
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(500).send()
     })
   })
@@ -600,19 +540,19 @@ rabbit.connect().then(() => {
 
     /* We need to check to make sure that they sent us 64 hexadecimal characters */
     if (!isHex(idx) || idx.length !== 64) {
-      logHTTPError(req, 'Transaction hash supplied is not in a valid format', process.hrtime(start))
+      Helpers.logHTTPError(req, 'Transaction hash supplied is not in a valid format', process.hrtime(start))
       return res.status(400).send()
     }
 
     database.getTransactionOutputs(idx).then((outputs) => {
       if (outputs.length === 0) {
-        logHTTPRequest(req, process.hrtime(start))
+        Helpers.logHTTPRequest(req, process.hrtime(start))
         return res.status(404).send()
       }
-      logHTTPRequest(req, process.hrtime(start))
+      Helpers.logHTTPRequest(req, process.hrtime(start))
       return res.json(outputs)
     }).catch((error) => {
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(500).send()
     })
   })
@@ -624,15 +564,15 @@ rabbit.connect().then(() => {
 
     /* We need to check to make sure that they sent us 64 hexadecimal characters */
     if (!isHex(idx) || idx.length !== 64) {
-      logHTTPError(req, 'Payment ID supplied is not in a valid format', process.hrtime(start))
+      Helpers.logHTTPError(req, 'Payment ID supplied is not in a valid format', process.hrtime(start))
       return res.status(400).send()
     }
 
     database.getTransactionHashesByPaymentId(idx).then((hashes) => {
-      logHTTPRequest(req, process.hrtime(start))
+      Helpers.logHTTPRequest(req, process.hrtime(start))
       return res.json(hashes)
     }).catch((error) => {
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(500).send()
     })
   })
@@ -640,10 +580,10 @@ rabbit.connect().then(() => {
   app.get('/amounts', (req, res) => {
     const start = process.hrtime()
     database.getMixableAmounts(Config.defaultMixins).then((amounts) => {
-      logHTTPRequest(req, process.hrtime(start))
+      Helpers.logHTTPRequest(req, process.hrtime(start))
       return res.json(amounts)
     }).catch((error) => {
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(404).send()
     })
   })
@@ -652,20 +592,20 @@ rabbit.connect().then(() => {
   app.post('/randomOutputs', (req, res) => {
     const start = process.hrtime()
     const amounts = req.body.amounts || []
-    const mixin = toNumber(req.body.mixin) || Config.defaultMixins
+    const mixin = Helpers.toNumber(req.body.mixin) || Config.defaultMixins
 
     /* If it's not an array then we didn't follow the directions */
     if (!Array.isArray(amounts)) {
-      logHTTPError(req, JSON.stringify(req.body), process.hrtime(start))
+      Helpers.logHTTPError(req, JSON.stringify(req.body), process.hrtime(start))
       return res.status(400).send()
     }
 
     /* Check to make sure that we were passed numbers
      for each value in the array */
     for (var i = 0; i < amounts.length; i++) {
-      var amount = toNumber(amounts[i])
+      var amount = Helpers.toNumber(amounts[i])
       if (!amount) {
-        logHTTPError(req, JSON.stringify(req.body), process.hrtime(start))
+        Helpers.logHTTPError(req, JSON.stringify(req.body), process.hrtime(start))
         return res.status(400).send()
       }
       amounts[i] = amount
@@ -673,10 +613,10 @@ rabbit.connect().then(() => {
 
     /* Go and try to get our random outputs */
     database.getRandomOutputsForAmounts(amounts, mixin).then((randomOutputs) => {
-      logHTTPRequest(req, JSON.stringify(req.body), process.hrtime(start))
+      Helpers.logHTTPRequest(req, JSON.stringify(req.body), process.hrtime(start))
       return res.json(randomOutputs)
     }).catch((error) => {
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(500).send()
     })
   })
@@ -686,12 +626,12 @@ rabbit.connect().then(() => {
   app.post('/sync', (req, res) => {
     const start = process.hrtime()
     const lastKnownBlockHashes = req.body.lastKnownBlockHashes || []
-    const blockCount = toNumber(req.body.blockCount) || 100
-    const scanHeight = toNumber(req.body.scanHeight)
+    const blockCount = Helpers.toNumber(req.body.blockCount) || 100
+    const scanHeight = Helpers.toNumber(req.body.scanHeight)
 
     /* If it's not an array then we didn't follow the directions */
     if (!Array.isArray(lastKnownBlockHashes) && !scanHeight) {
-      logHTTPError(req, JSON.stringify(req.body), process.hrtime(start))
+      Helpers.logHTTPError(req, JSON.stringify(req.body), process.hrtime(start))
       return res.status(400).send()
     }
 
@@ -711,24 +651,24 @@ rabbit.connect().then(() => {
      to search for, then we're going to stop right here and
      say something about it */
       if (searchHashes.length === 0) {
-        logHTTPError(req, 'No search hashes supplied', process.hrtime(start))
+        Helpers.logHTTPError(req, 'No search hashes supplied', process.hrtime(start))
         return res.status(400).send()
       }
 
       database.getWalletSyncData(searchHashes, blockCount).then((outputs) => {
         req.body.lastKnownBlockHashes = req.body.lastKnownBlockHashes.length
-        logHTTPRequest(req, JSON.stringify(req.body), process.hrtime(start))
+        Helpers.logHTTPRequest(req, JSON.stringify(req.body), process.hrtime(start))
         return res.json(outputs)
       }).catch((error) => {
-        logHTTPError(req, error, process.hrtime(start))
+        Helpers.logHTTPError(req, error, process.hrtime(start))
         return res.status(404).send()
       })
     } else {
       database.getWalletSyncDataByHeight(scanHeight, blockCount).then((outputs) => {
-        logHTTPRequest(req, JSON.stringify(req.body), process.hrtime(start))
+        Helpers.logHTTPRequest(req, JSON.stringify(req.body), process.hrtime(start))
         return res.json(outputs)
       }).catch((error) => {
-        logHTTPError(req, error, process.hrtime(start))
+        Helpers.logHTTPError(req, error, process.hrtime(start))
         return res.status(404).send()
       })
     }
@@ -742,7 +682,7 @@ rabbit.connect().then(() => {
 
     /* If there is no transaction or the data isn't hex... we're done here */
     if (!transaction || !isHex(transaction)) {
-      logHTTPError(req, 'Invalid or no transaction hex data supplied', process.hrtime(start))
+      Helpers.logHTTPError(req, 'Invalid or no transaction hex data supplied', process.hrtime(start))
       return res.status(400).send()
     }
 
@@ -750,7 +690,7 @@ rabbit.connect().then(() => {
     try {
       tx.blob = transaction
     } catch (e) {
-      logHTTPError(req, 'Could not deserialize transaction', process.hrtime(start))
+      Helpers.logHTTPError(req, 'Could not deserialize transaction', process.hrtime(start))
       return res.status(400).send()
     }
 
@@ -762,14 +702,14 @@ rabbit.connect().then(() => {
       hash: txHash
     }, 9000).then((response) => {
       /* Log and spit back the response */
-      logHTTPRequest(req, util.format('[%s] [I:%s] [O:%s] [A:%s] [F:%s] [%s] %s', txHash, tx.inputs.length, tx.outputs.length, tx.amount || 'N/A', tx.fee || 'N/A', (response.status) ? response.status.yellow : 'Error'.red, response.error.red), process.hrtime(start))
+      Helpers.logHTTPRequest(req, util.format('[%s] [I:%s] [O:%s] [A:%s] [F:%s] [%s] %s', txHash, tx.inputs.length, tx.outputs.length, tx.amount || 'N/A', tx.fee || 'N/A', (response.status) ? response.status.yellow : 'Error'.red, response.error.red), process.hrtime(start))
       if (response.status) {
         return res.json(response)
       } else {
         return res.status(504).send()
       }
     }).catch(() => {
-      logHTTPError(req, 'Could not complete request with relay agent', process.hrtime(start))
+      Helpers.logHTTPError(req, 'Could not complete request with relay agent', process.hrtime(start))
       return res.status(504).send()
     })
   })
@@ -778,7 +718,7 @@ rabbit.connect().then(() => {
 
   app.get('/fee', (req, res) => {
     const start = process.hrtime()
-    logHTTPRequest(req, process.hrtime(start))
+    Helpers.logHTTPRequest(req, process.hrtime(start))
     return res.json({
       address: Config.nodeFee.address,
       amount: Config.nodeFee.amount,
@@ -788,7 +728,7 @@ rabbit.connect().then(() => {
 
   app.get('/feeinfo', (req, res) => {
     const start = process.hrtime()
-    logHTTPRequest(req, process.hrtime(start))
+    Helpers.logHTTPRequest(req, process.hrtime(start))
     return res.json({
       address: Config.nodeFee.address,
       amount: Config.nodeFee.amount,
@@ -798,53 +738,53 @@ rabbit.connect().then(() => {
 
   app.post('/getwalletsyncdata/preflight', (req, res) => {
     const start = process.hrtime()
-    const startHeight = toNumber(req.body.startHeight)
-    const startTimestamp = toNumber(req.body.startTimestamp)
+    const startHeight = Helpers.toNumber(req.body.startHeight)
+    const startTimestamp = Helpers.toNumber(req.body.startTimestamp)
     const blockHashCheckpoints = req.body.blockHashCheckpoints || []
 
     blockHashCheckpoints.forEach((checkpoint) => {
     /* If any of the supplied block hashes aren't hexadecimal then we're done */
       if (!isHex(checkpoint)) {
-        logHTTPError(req, 'Block hash supplied is not in a valid format', process.hrtime(start))
+        Helpers.logHTTPError(req, 'Block hash supplied is not in a valid format', process.hrtime(start))
         return res.status(400).send()
       }
     })
 
     /* We cannot supply both values */
     if (startHeight > 0 && startTimestamp > 0) {
-      logHTTPError(req, 'Cannot supply both startHeight and startTimestamp', process.hrtime(start))
+      Helpers.logHTTPError(req, 'Cannot supply both startHeight and startTimestamp', process.hrtime(start))
       return res.status(400).send()
     }
 
     database.legacyGetWalletSyncDataPreflight(startHeight, startTimestamp, blockHashCheckpoints).then((syncData) => {
       req.body.blockHashCheckpoints = blockHashCheckpoints.length
-      logHTTPRequest(req, JSON.stringify(req.body), process.hrtime(start))
+      Helpers.logHTTPRequest(req, JSON.stringify(req.body), process.hrtime(start))
       return res.json({ height: syncData.height, blockCount: syncData.blockCount, status: 'OK' })
     }).catch((error) => {
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(500).send()
     })
   })
 
   app.post('/getwalletsyncdata', (req, res) => {
     const start = process.hrtime()
-    const startHeight = toNumber(req.body.startHeight)
-    const startTimestamp = toNumber(req.body.startTimestamp)
+    const startHeight = Helpers.toNumber(req.body.startHeight)
+    const startTimestamp = Helpers.toNumber(req.body.startTimestamp)
     const blockHashCheckpoints = req.body.blockHashCheckpoints || []
-    const blockCount = toNumber(req.body.blockCount) || 100
+    const blockCount = Helpers.toNumber(req.body.blockCount) || 100
     const skipCoinbaseTransactions = (req.body.skipCoinbaseTransactions)
 
     blockHashCheckpoints.forEach((checkpoint) => {
     /* If any of the supplied block hashes aren't hexadecimal then we're done */
       if (!isHex(checkpoint)) {
-        logHTTPError(req, 'Block hash supplied is not in a valid format', process.hrtime(start))
+        Helpers.logHTTPError(req, 'Block hash supplied is not in a valid format', process.hrtime(start))
         return res.status(400).send()
       }
     })
 
     /* We cannot supply both values */
     if (startHeight > 0 && startTimestamp > 0) {
-      logHTTPError(req, 'Cannot supply both startHeight and startTimestamp', process.hrtime(start))
+      Helpers.logHTTPError(req, 'Cannot supply both startHeight and startTimestamp', process.hrtime(start))
       return res.status(400).send()
     }
 
@@ -860,14 +800,14 @@ rabbit.connect().then(() => {
       }
 
       if (response.blocks.length !== 0) {
-        logHTTPRequest(req, JSON.stringify(req.body), process.hrtime(start))
+        Helpers.logHTTPRequest(req, JSON.stringify(req.body), process.hrtime(start))
         return res.json({
           items: response.blocks,
           status: 'OK',
           synced: false
         })
       } else {
-        logHTTPRequest(req, JSON.stringify(req.body), process.hrtime(start))
+        Helpers.logHTTPRequest(req, JSON.stringify(req.body), process.hrtime(start))
         return res.json({
           items: response.blocks,
           status: 'OK',
@@ -879,35 +819,35 @@ rabbit.connect().then(() => {
         })
       }
     }).catch((error) => {
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(500).send()
     })
   })
 
   app.get('/getwalletsyncdata/:height/:count', (req, res) => {
     const start = process.hrtime()
-    const startHeight = toNumber(req.params.height)
-    const blockCount = toNumber(req.params.count) || 100
+    const startHeight = Helpers.toNumber(req.params.height)
+    const blockCount = Helpers.toNumber(req.params.count) || 100
 
     database.legacyGetWalletSyncDataLite(startHeight, blockCount).then((results) => {
-      logHTTPRequest(req, process.hrtime(start))
+      Helpers.logHTTPRequest(req, process.hrtime(start))
       return res.json({ items: results, status: 'OK' })
     }).catch((error) => {
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(500).send()
     })
   })
 
   app.get('/getwalletsyncdata/:height', (req, res) => {
     const start = process.hrtime()
-    const startHeight = toNumber(req.params.height)
-    const blockCount = toNumber(req.params.count) || 100
+    const startHeight = Helpers.toNumber(req.params.height)
+    const blockCount = Helpers.toNumber(req.params.count) || 100
 
     database.legacyGetWalletSyncDataLite(startHeight, blockCount).then((results) => {
-      logHTTPRequest(req, process.hrtime(start))
+      Helpers.logHTTPRequest(req, process.hrtime(start))
       return res.json({ items: results, status: 'OK' })
     }).catch((error) => {
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(500).send()
     })
   })
@@ -918,16 +858,16 @@ rabbit.connect().then(() => {
 
     transactionHashes.forEach((hash) => {
       if (!isHex(hash)) {
-        logHTTPError(req, 'Transaction has supplied is not in a valid format', process.hrtime(start))
+        Helpers.logHTTPError(req, 'Transaction has supplied is not in a valid format', process.hrtime(start))
         return res.status(400).send()
       }
     })
 
     database.getTransactionsStatus(transactionHashes).then((result) => {
-      logHTTPRequest(req, JSON.stringify(req.body), process.hrtime(start))
+      Helpers.logHTTPRequest(req, JSON.stringify(req.body), process.hrtime(start))
       return res.json(result)
     }).catch((error) => {
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(500).send()
     })
   })
@@ -940,7 +880,7 @@ rabbit.connect().then(() => {
 
     /* If there is no transaction or the data isn't hex... we're done here */
     if (!transaction || !isHex(transaction)) {
-      logHTTPError(req, 'Invalid or no transaction hex data supplied', process.hrtime(start))
+      Helpers.logHTTPError(req, 'Invalid or no transaction hex data supplied', process.hrtime(start))
       return res.status(400).send()
     }
 
@@ -948,7 +888,7 @@ rabbit.connect().then(() => {
     try {
       tx.blob = transaction
     } catch (e) {
-      logHTTPError(req, 'Could not deserialize transaction', process.hrtime(start))
+      Helpers.logHTTPError(req, 'Could not deserialize transaction', process.hrtime(start))
       return res.status(400).send()
     }
 
@@ -960,14 +900,14 @@ rabbit.connect().then(() => {
       hash: txHash
     }, 9000).then((response) => {
       /* Log and spit back the response */
-      logHTTPRequest(req, util.format('[%s] [I:%s] [O:%s] [A:%s] [F:%s] [%s] %s', txHash, tx.inputs.length, tx.outputs.length, tx.amount || 'N/A', tx.fee || 'N/A', (response.status) ? response.status.yellow : 'Error'.red, response.error.red), process.hrtime(start))
+      Helpers.logHTTPRequest(req, util.format('[%s] [I:%s] [O:%s] [A:%s] [F:%s] [%s] %s', txHash, tx.inputs.length, tx.outputs.length, tx.amount || 'N/A', tx.fee || 'N/A', (response.status) ? response.status.yellow : 'Error'.red, response.error.red), process.hrtime(start))
       if (response.status) {
         return res.json(response)
       } else {
         return res.status(504).send()
       }
     }).catch(() => {
-      logHTTPError(req, 'Could not complete request with relay agent', process.hrtime(start))
+      Helpers.logHTTPError(req, 'Could not complete request with relay agent', process.hrtime(start))
       return res.status(504).send()
     })
   })
@@ -976,13 +916,13 @@ rabbit.connect().then(() => {
   app.get('/reward/last', (req, res) => {
     const start = process.hrtime()
     database.getLastBlockHeader().then((header) => {
-      logHTTPRequest(req, process.hrtime(start))
+      Helpers.logHTTPRequest(req, process.hrtime(start))
 
       const reward = (header.baseReward / Math.pow(10, Config.coinDecimals)).toFixed(Config.coinDecimals).toString()
 
       return res.send(reward)
     }).catch((error) => {
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(500).send()
     })
   })
@@ -991,7 +931,7 @@ rabbit.connect().then(() => {
   app.get('/reward/next', (req, res) => {
     const start = process.hrtime()
     database.getLastBlockHeader().then((header) => {
-      logHTTPRequest(req, process.hrtime(start))
+      Helpers.logHTTPRequest(req, process.hrtime(start))
 
       const reward = BigInteger(Config.maxSupply)
         .subtract(header.alreadyGeneratedCoins)
@@ -1002,7 +942,7 @@ rabbit.connect().then(() => {
 
       return res.send(nextReward)
     }).catch((error) => {
-      logHTTPError(req, error, process.hrtime(start))
+      Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(500).send()
     })
   })
@@ -1018,7 +958,7 @@ rabbit.connect().then(() => {
   if (env.useNodeMonitor) {
     app.get('/node/list', (req, res) => {
       const start = process.hrtime()
-      const maxFee = toNumber(req.query.max_fee) || false
+      const maxFee = Helpers.toNumber(req.query.max_fee) || false
       var minVersion = req.query.min_version || false
 
       if (minVersion) {
@@ -1027,7 +967,7 @@ rabbit.connect().then(() => {
       }
 
       database.getNodeStats().then((stats) => {
-        logHTTPRequest(req, process.hrtime(start))
+        Helpers.logHTTPRequest(req, process.hrtime(start))
 
         const response = {
           nodes: []
@@ -1059,14 +999,14 @@ rabbit.connect().then(() => {
 
         return res.json(response)
       }).catch((error) => {
-        logHTTPError(req, error, process.hrtime(start))
+        Helpers.logHTTPError(req, error, process.hrtime(start))
         return res.status(500).send()
       })
     })
 
     app.get('/node/list/online', (req, res) => {
       const start = process.hrtime()
-      const maxFee = toNumber(req.query.max_fee) || false
+      const maxFee = Helpers.toNumber(req.query.max_fee) || false
       var minVersion = req.query.min_version || false
 
       if (minVersion) {
@@ -1075,7 +1015,7 @@ rabbit.connect().then(() => {
       }
 
       database.getNodeStats().then((stats) => {
-        logHTTPRequest(req, process.hrtime(start))
+        Helpers.logHTTPRequest(req, process.hrtime(start))
 
         const response = {
           nodes: []
@@ -1108,14 +1048,14 @@ rabbit.connect().then(() => {
 
         return res.json(response)
       }).catch((error) => {
-        logHTTPError(req, error, process.hrtime(start))
+        Helpers.logHTTPError(req, error, process.hrtime(start))
         return res.status(500).send()
       })
     })
 
     app.get('/node/list/available', (req, res) => {
       const start = process.hrtime()
-      const maxFee = toNumber(req.query.max_fee) || false
+      const maxFee = Helpers.toNumber(req.query.max_fee) || false
       var minVersion = req.query.min_version || false
 
       if (minVersion) {
@@ -1124,7 +1064,7 @@ rabbit.connect().then(() => {
       }
 
       database.getNodeStats().then((stats) => {
-        logHTTPRequest(req, process.hrtime(start))
+        Helpers.logHTTPRequest(req, process.hrtime(start))
 
         const response = {
           nodes: []
@@ -1157,7 +1097,7 @@ rabbit.connect().then(() => {
 
         return res.json(response)
       }).catch((error) => {
-        logHTTPError(req, error, process.hrtime(start))
+        Helpers.logHTTPError(req, error, process.hrtime(start))
         return res.status(500).send()
       })
     })
@@ -1166,7 +1106,7 @@ rabbit.connect().then(() => {
       const start = process.hrtime()
 
       database.getNodeStats().then((stats) => {
-        logHTTPRequest(req, process.hrtime(start))
+        Helpers.logHTTPRequest(req, process.hrtime(start))
 
         const response = []
 
@@ -1212,7 +1152,7 @@ rabbit.connect().then(() => {
 
         return res.json(response)
       }).catch((error) => {
-        logHTTPError(req, error, process.hrtime(start))
+        Helpers.logHTTPError(req, error, process.hrtime(start))
         return res.status(500).send()
       })
     })
@@ -1226,7 +1166,7 @@ rabbit.connect().then(() => {
       const start = process.hrtime()
 
       database.getPoolStats().then((stats) => {
-        logHTTPRequest(req, process.hrtime(start))
+        Helpers.logHTTPRequest(req, process.hrtime(start))
 
         const response = {
           pools: []
@@ -1251,7 +1191,7 @@ rabbit.connect().then(() => {
 
         return res.json(response)
       }).catch((error) => {
-        logHTTPError(req, error, process.hrtime(start))
+        Helpers.logHTTPError(req, error, process.hrtime(start))
         return res.status(500).send()
       })
     })
@@ -1260,7 +1200,7 @@ rabbit.connect().then(() => {
       const start = process.hrtime()
 
       database.getPoolStats().then((stats) => {
-        logHTTPRequest(req, process.hrtime(start))
+        Helpers.logHTTPRequest(req, process.hrtime(start))
 
         const response = {
           pools: []
@@ -1287,7 +1227,7 @@ rabbit.connect().then(() => {
 
         return res.json(response)
       }).catch((error) => {
-        logHTTPError(req, error, process.hrtime(start))
+        Helpers.logHTTPError(req, error, process.hrtime(start))
         return res.status(500).send()
       })
     })
@@ -1296,7 +1236,7 @@ rabbit.connect().then(() => {
       const start = process.hrtime()
 
       database.getPoolStats().then((stats) => {
-        logHTTPRequest(req, process.hrtime(start))
+        Helpers.logHTTPRequest(req, process.hrtime(start))
 
         const response = {
           pools: []
@@ -1323,7 +1263,7 @@ rabbit.connect().then(() => {
 
         return res.json(response)
       }).catch((error) => {
-        logHTTPError(req, error, process.hrtime(start))
+        Helpers.logHTTPError(req, error, process.hrtime(start))
         return res.status(500).send()
       })
     })
@@ -1332,7 +1272,7 @@ rabbit.connect().then(() => {
       const start = process.hrtime()
 
       database.getPoolStats().then((stats) => {
-        logHTTPRequest(req, process.hrtime(start))
+        Helpers.logHTTPRequest(req, process.hrtime(start))
 
         const response = []
 
@@ -1376,7 +1316,7 @@ rabbit.connect().then(() => {
 
         return res.json(response)
       }).catch((error) => {
-        logHTTPError(req, error, process.hrtime(start))
+        Helpers.logHTTPError(req, error, process.hrtime(start))
         return res.status(500).send()
       })
     })
@@ -1389,13 +1329,13 @@ rabbit.connect().then(() => {
 
   /* This is our catch all to return a 404-error */
   app.all('*', (req, res) => {
-    logHTTPError(req, 'Requested URL not Found (404)')
+    Helpers.logHTTPError(req, 'Requested URL not Found (404)')
     return res.status(404).send()
   })
 
   app.listen(Config.httpPort, Config.bindIp, () => {
-    log('[HTTP] Server started on ' + Config.bindIp + ':' + Config.httpPort)
+    Helpers.log('[HTTP] Server started on ' + Config.bindIp + ':' + Config.httpPort)
   })
 }).catch((error) => {
-  log(util.format('[RABBIT] %s', error.toString()))
+  Helpers.log(util.format('[RABBIT] %s', error.toString()))
 })
