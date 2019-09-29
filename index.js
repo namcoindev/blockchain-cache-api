@@ -763,10 +763,31 @@ rabbit.connect().then(() => {
       return res.status(400).send()
     }
 
-    database.legacyGetWalletSyncDataPreflight(startHeight, startTimestamp, blockHashCheckpoints).then((syncData) => {
+    database.legacyGetWalletSyncDataPreflight(startHeight, startTimestamp, blockHashCheckpoints).then((response) => {
       req.body.blockHashCheckpoints = blockHashCheckpoints.length
       Helpers.logHTTPRequest(req, JSON.stringify(req.body), process.hrtime(start))
-      return res.json({ height: syncData.height, blockCount: syncData.blockCount, status: 'OK' })
+
+      if (response.blockHashes.length !== 0) {
+        return res.json({
+          height: response.height,
+          blockCount: response.blockCount,
+          blockHashes: response.blockHashes,
+          status: 'OK',
+          synced: false
+        })
+      } else {
+        return res.json({
+          height: response.height,
+          blockCount: response.blockCount,
+          blockHashes: [],
+          status: 'OK',
+          synced: true,
+          topBlock: {
+            height: response.topBlock.height,
+            hash: response.topBlock.hash
+          }
+        })
+      }
     }).catch((error) => {
       Helpers.logHTTPError(req, error, process.hrtime(start))
       return res.status(500).send()
