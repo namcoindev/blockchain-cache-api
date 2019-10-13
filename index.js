@@ -12,6 +12,7 @@ const Compression = require('compression')
 const CoinUtils = new (require('turtlecoin-utils').CryptoNote)()
 const Config = require('./config.json')
 const DatabaseBackend = require('./lib/databaseBackend.js')
+const DNS = require('dns')
 const Express = require('express')
 const Helmet = require('helmet')
 const Helpers = require('./lib/helpers.js')
@@ -43,7 +44,8 @@ const env = {
     password: process.env.RABBIT_PUBLIC_PASSWORD || ''
   },
   useNodeMonitor: process.env.USE_NODE_MONITOR || Config.useNodeMonitor || false,
-  usePoolMonitor: process.env.USE_POOL_MONITOR || Config.usePoolMonitor || false
+  usePoolMonitor: process.env.USE_POOL_MONITOR || Config.usePoolMonitor || false,
+  checkPointsDomain: process.env.CHECKPOINTS_DOMAIN || Config.checkPointsDomain || false
 }
 
 if (!process.env.NODE_ENV || process.env.NODE_ENV.toLowerCase() !== 'production') {
@@ -121,6 +123,34 @@ rabbit.connect().then(() => {
   /* If we are configured to use compression in our config, we will activate it */
   if (Config.useCompression) {
     app.use(Compression())
+  }
+
+  if (env.checkPointsDomain) {
+    /* Gets the current checkpoints IPFS hash */
+    app.get('/checkpointsIPFSHash', (req, res) => {
+      const start = process.hrtime()
+
+      DNS.resolveTxt(util.format('_dnslink.%s', env.checkPointsDomain), (err, records) => {
+        if (err) {
+          Helpers.logHTTPError(req, err.toString(), process.hrtime(start))
+          return res.status(500).send()
+        }
+
+        if (records.length === 0 || records[0].length === 0) {
+          Helpers.logHTTPError(req, 'DNS record not found', process.hrtime(start))
+          return res.status(404).send()
+        }
+
+        const record = records[0][0]
+
+        const hash = record.split('/').pop()
+
+        Helpers.logHTTPRequest(req, process.hrtime(start))
+        return res.json({
+          hash: hash
+        })
+      })
+    })
   }
 
   /* Return the underlying information about the daemon(s) we are polling */

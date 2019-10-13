@@ -17,5 +17,6 @@
   "useCompression": false,
   "useNodeMonitor": false,
   "usePoolMonitor": false,
-  "useRedisCache": false
+  "useRedisCache": false,
+  "checkPointsDomain": "checkpoints.turtlecoin.dev"
 }
