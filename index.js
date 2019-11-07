@@ -1017,13 +1017,6 @@ rabbit.connect().then(() => {
   if (env.useNodeMonitor) {
     app.get('/node/list', (req, res) => {
       const start = process.hrtime()
-      const maxFee = Helpers.toNumber(req.query.max_fee) || false
-      var minVersion = req.query.min_version || false
-
-      if (minVersion) {
-        minVersion = semver.clean(minVersion)
-        if (!semver.valid(minVersion)) minVersion = false
-      }
 
       database.getNodeStats().then((stats) => {
         Helpers.logHTTPRequest(req, process.hrtime(start))
@@ -1033,12 +1026,6 @@ rabbit.connect().then(() => {
         }
 
         stats.forEach((node) => {
-          if (maxFee && node.feeAmount >= maxFee) return
-          if (!node.version) return
-          node.version = semver.clean(node.version)
-          if (!semver.valid(node.version)) return
-          if (minVersion && semver.lt(node.version, minVersion)) return
-
           response.nodes.push({
             name: node.name,
             url: node.hostname,
@@ -1046,13 +1033,13 @@ rabbit.connect().then(() => {
             ssl: (node.ssl === 1),
             cache: (node.cache === 1),
             fee: {
-              address: node.feeAddress,
-              amount: node.feeAmount
+              address: node.feeAddress || '',
+              amount: node.feeAmount || 0
             },
-            availability: node.availability,
-            online: node.status,
-            version: node.version,
-            timestamp: node.lastCheckTimestamp
+            availability: node.availability || 0,
+            online: node.status || false,
+            version: node.version || '',
+            timestamp: node.lastCheckTimestamp || 0
           })
         })
 
@@ -1240,11 +1227,11 @@ rabbit.connect().then(() => {
             miningAddress: pool.miningAddress,
             mergedMining: (pool.mergedMining === 1),
             mergedMiningIsParentChain: (pool.mergedMiningIsParentChain === 1),
-            fee: pool.fee,
-            minPayout: pool.minPayout,
-            timestamp: pool.lastCheckTimestamp,
-            availability: pool.availability,
-            online: pool.status
+            fee: pool.fee || 0,
+            minPayout: pool.minPayout || 0,
+            timestamp: pool.lastCheckTimestamp || 0,
+            availability: pool.availability || 0,
+            online: pool.status || false
           })
         })
 
