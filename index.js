@@ -1017,50 +1017,17 @@ rabbit.connect().then(() => {
   if (env.useNodeMonitor) {
     app.get('/node/list', (req, res) => {
       const start = process.hrtime()
-      const maxFee = Helpers.toNumber(req.query.max_fee) || false
-      var minVersion = req.query.min_version || false
 
-      if (minVersion) {
-        minVersion = semver.clean(minVersion)
-        if (!semver.valid(minVersion)) minVersion = false
-      }
+      database.getNodes()
+        .then(nodes => {
+          Helpers.logHTTPRequest(req, process.hrtime(start))
 
-      database.getNodeStats().then((stats) => {
-        Helpers.logHTTPRequest(req, process.hrtime(start))
-
-        const response = {
-          nodes: []
-        }
-
-        stats.forEach((node) => {
-          if (maxFee && node.feeAmount >= maxFee) return
-          if (!node.version) return
-          node.version = semver.clean(node.version)
-          if (!semver.valid(node.version)) return
-          if (minVersion && semver.lt(node.version, minVersion)) return
-
-          response.nodes.push({
-            name: node.name,
-            url: node.hostname,
-            port: node.port,
-            ssl: (node.ssl === 1),
-            cache: (node.cache === 1),
-            fee: {
-              address: node.feeAddress,
-              amount: node.feeAmount
-            },
-            availability: node.availability,
-            online: node.status,
-            version: node.version,
-            timestamp: node.lastCheckTimestamp
-          })
+          return res.json({ nodes })
         })
-
-        return res.json(response)
-      }).catch((error) => {
-        Helpers.logHTTPError(req, error, process.hrtime(start))
-        return res.status(500).send()
-      })
+        .catch((error) => {
+          Helpers.logHTTPError(req, error, process.hrtime(start))
+          return res.status(500).send()
+        })
     })
 
     app.get('/node/list/online', (req, res) => {
@@ -1224,35 +1191,16 @@ rabbit.connect().then(() => {
     app.get('/pool/list', (req, res) => {
       const start = process.hrtime()
 
-      database.getPoolStats().then((stats) => {
-        Helpers.logHTTPRequest(req, process.hrtime(start))
+      database.getPools()
+        .then(pools => {
+          Helpers.logHTTPRequest(req, process.hrtime(start))
 
-        const response = {
-          pools: []
-        }
-
-        stats.forEach((pool) => {
-          response.pools.push({
-            name: pool.name,
-            url: pool.url,
-            api: pool.api,
-            type: pool.type,
-            miningAddress: pool.miningAddress,
-            mergedMining: (pool.mergedMining === 1),
-            mergedMiningIsParentChain: (pool.mergedMiningIsParentChain === 1),
-            fee: pool.fee,
-            minPayout: pool.minPayout,
-            timestamp: pool.lastCheckTimestamp,
-            availability: pool.availability,
-            online: pool.status
-          })
+          return res.json({ pools })
         })
-
-        return res.json(response)
-      }).catch((error) => {
-        Helpers.logHTTPError(req, error, process.hrtime(start))
-        return res.status(500).send()
-      })
+        .catch((error) => {
+          Helpers.logHTTPError(req, error, process.hrtime(start))
+          return res.status(500).send()
+        })
     })
 
     app.get('/pool/list/online', (req, res) => {
