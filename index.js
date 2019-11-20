@@ -107,7 +107,7 @@ app.use((err, req, res, next) => {
 app.use((req, res, next) => {
   res.header('X-Requested-With', '*')
   res.header('Access-Control-Allow-Origin', Config.corsHeader)
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept')
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, User-Agent')
   res.header('Access-Control-Allow-Methods', 'POST, GET, OPTIONS')
   res.header('Cache-Control', 'max-age=30, public')
   res.header('Referrer-Policy', 'no-referrer')
