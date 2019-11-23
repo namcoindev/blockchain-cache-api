@@ -706,11 +706,13 @@ app.post('/randomOutputs', (req, res) => {
     amounts[i] = amount
   }
 
-  /* Go and try to get our random outputs */
-  database.getRandomOutputsForAmounts(amounts, mixin)
-    .then(randomOutputs => {
+  /* Go and try to get our random outputs for a daemon via rabbit MQ */
+  rabbit.requestReply(Config.queues.relayAgent, { randomOutputs: { amounts, mixin } }, 5000)
+    .then(response => {
+      if (response.status && response.status.toLowerCase() !== 'ok') throw new Error('Could not get outputs')
+
       Helpers.logHTTPRequest(req, JSON.stringify(req.body), process.hrtime(start))
-      return res.json(randomOutputs)
+      return res.json(response.outs)
     })
     .catch(error => {
       Helpers.logHTTPError(req, error, process.hrtime(start))
