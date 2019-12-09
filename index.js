@@ -67,7 +67,8 @@ const database = new DatabaseBackend({
   password: env.mysql.password,
   database: env.mysql.database,
   connectionLimit: env.mysql.connectionLimit,
-  redis: env.mysql.redis
+  redis: env.mysql.redis,
+  usePoolMonitor: env.usePoolMonitor
 })
 
 Logger.log('[DB] Connected to database backend at %s:%s', database.host, database.port)
@@ -806,7 +807,7 @@ app.post('/transaction', (req, res) => {
   }, 9000)
     .then(response => {
       /* Log and spit back the response */
-      Helpers.logHTTPRequest(req, util.format('[%s] [I:%s] [O:%s] [A:%s] [F:%s] [%s] %s', txHash, tx.inputs.length, tx.outputs.length, tx.amount || 'N/A', tx.fee || 'N/A', (response.status) ? response.status.yellow : 'Error'.red, response.error.red), process.hrtime(start))
+      Helpers.logHTTPRequest(req, util.format('[%s] [I:%s] [O:%s] [A:%s] [F:%s] [%s] %s', txHash, tx.inputs.length, tx.outputs.length, tx.amount || 0, tx.fee || 0, (response.status) ? response.status.yellow : 'Error'.red, response.error.red), process.hrtime(start))
 
       if (response.status) {
         return res.json(response)
@@ -1042,7 +1043,7 @@ app.post('/sendrawtransaction', (req, res) => {
   }, 9000)
     .then(response => {
       /* Log and spit back the response */
-      Helpers.logHTTPRequest(req, util.format('[%s] [I:%s] [O:%s] [A:%s] [F:%s] [%s] %s', txHash, tx.inputs.length, tx.outputs.length, tx.amount || 'N/A', tx.fee || 'N/A', (response.status) ? response.status.yellow : 'Error'.red, response.error.red), process.hrtime(start))
+      Helpers.logHTTPRequest(req, util.format('[%s] [I:%s] [O:%s] [A:%s] [F:%s] [%s] %s', txHash, tx.inputs.length, tx.outputs.length, tx.amount || 0, tx.fee || 0, (response.status) ? response.status.yellow : 'Error'.red, response.error.red), process.hrtime(start))
 
       if (response.status) {
         return res.json(response)
