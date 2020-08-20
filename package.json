@@ -37,7 +37,7 @@
     "random-number-csprng": "^1.0.2",
     "redis": "^2.8.0",
     "semver": "^6.3.0",
-    "namcoin-utils": "^1.0.20",
+    "turtlecoin-utils": "^1.0.20",
     "uuid": "^3.4.0"
   }
 }
