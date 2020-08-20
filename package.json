@@ -1,7 +1,7 @@
 {
   "name": "blockchain-cache-api",
   "version": "0.0.18",
-  "description": "TurtlePay: Blockchain Cache API",
+  "description": "NamPay: Blockchain Cache API",
   "main": "index.js",
   "scripts": {
     "test": "standard",
@@ -9,17 +9,17 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/TurtlePay/blockchain-cache-api.git"
+    "url": "git+https://github.com/namcoindev/blockchain-cache-api"
   },
   "keywords": [
-    "TurtlePay"
+    "NamPay"
   ],
-  "author": "TurtlePay Development Team",
+  "author": "NamPay Development Team",
   "license": "AGPL-3.0",
   "bugs": {
-    "url": "https://github.com/TurtlePay/blockchain-cache-api/issues"
+    "url": "https://github.com/namcoindev/blockchain-cache-api/issues"
   },
-  "homepage": "https://github.com/TurtlePay/blockchain-cache-api#readme",
+  "homepage": "https://github.com/namcoindev/blockchain-cache-api#readme",
   "devDependencies": {
     "standard": "^13.0.1"
   },
