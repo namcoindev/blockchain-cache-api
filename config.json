@@ -2,10 +2,10 @@
   "bindIp": "0.0.0.0",
   "httpPort": 80,
   "corsHeader": "*",
-  "coinDecimals": 2,
-  "defaultMixins": 3,
-  "emissionSpeed": 25,
-  "maxSupply": 100000000000000,
+  "coinDecimals": 6,
+  "defaultMixins": 1,
+  "emissionSpeed": 21,
+  "maxSupply": 10000000000000,
   "queues": {
     "relayAgent": "request.network"
   },
